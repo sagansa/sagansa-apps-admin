@@ -136,10 +136,34 @@ class PaymentReceiptResource extends Resource
                         ->searchable()
                         ->preload()
                         ->reactive()
-                        ->afterStateUpdated(function (callable $set) {
-                            $set('dailySalaries', []);
-                            $set('total_amount', 0);
-                            $set('transfer_amount', 0);
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            if (!$state) {
+                                $set('dailySalaries', []);
+                                $set('total_amount', 0);
+                                $set('transfer_amount', 0);
+                                return;
+                            }
+
+                            $targetIds = [$state];
+                            try {
+                                $user = \App\Models\User::find($state);
+                                if ($user && array_key_exists('uuid', $user->getAttributes()) && $user->uuid) {
+                                    $targetIds[] = $user->uuid;
+                                }
+                            } catch (\Exception $e) {
+                            }
+
+                            $salaries = \App\Models\DailySalary::whereIn('created_by_id', $targetIds)
+                                ->where('payment_type_id', '1')
+                                ->where('status', '3')
+                                ->get(['id', 'amount']);
+
+                            $salaryIds = $salaries->pluck('id')->toArray();
+                            $totalAmount = $salaries->sum('amount');
+
+                            $set('dailySalaries', $salaryIds);
+                            $set('total_amount', $totalAmount);
+                            $set('transfer_amount', $totalAmount);
                         }),
 
                     Select::make('dailySalaries')

@@ -3,9 +3,9 @@
 @section('content')
     <div class="max-w-lg mx-auto">
         <h2 class="mb-4 text-2xl font-bold">Kontak Kami</h2>
-        <p><strong>WhatsApp:</strong> +62 812-3456-7890</p>
-        <p><strong>Email:</strong> contact@sagansa.com</p>
-        <p><strong>Alamat:</strong> Jl. Makanan No. 123, Jakarta</p>
+        <p><strong>WhatsApp:</strong> +62 8111-923-572</p>
+        <p><strong>Email:</strong> [EMAIL_ADDRESS]</p>
+        <p><strong>Alamat:</strong> Jl. Penggilingan Raya no 64, Jakarta Timur</p>
         <div class="mt-4">
             <p><strong>Ikuti Kami di:</strong></p>
             <ul class="flex space-x-4">
