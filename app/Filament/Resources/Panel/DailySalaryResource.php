@@ -66,7 +66,23 @@ class DailySalaryResource extends Resource
                         ->placeholder('Shift Store')
                         ->relationship('shiftStore', 'name'),
 
-                    DateInput::make('date'),
+                    DateInput::make('date')
+                        ->rules([
+                            'date',
+                            fn ($record) => function (string $attribute, $value, $fail) use ($record) {
+                                $createdBy = $record?->created_by_id ?? Auth::id();
+
+                                $exists = DailySalary::query()
+                                    ->where('created_by_id', $createdBy)
+                                    ->where('date', $value)
+                                    ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
+                                    ->exists();
+
+                                if ($exists) {
+                                    $fail('Gaji harian untuk tanggal ini sudah diinput sebelumnya.');
+                                }
+                            },
+                        ]),
 
                     CurrencyInput::make('amount'),
 

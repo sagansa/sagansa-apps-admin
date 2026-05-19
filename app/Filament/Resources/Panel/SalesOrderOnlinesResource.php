@@ -6,7 +6,6 @@ use App\Filament\Clusters\Sales;
 use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\DeliveryAddressColumn;
 use App\Filament\Columns\DeliveryStatusColumn;
-use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Filters\SelectStoreFilter;
 use App\Filament\Filters\DateFilter;
 use App\Filament\Resources\Panel\SalesOrderOnlinesResource\Pages;
@@ -76,7 +75,7 @@ class SalesOrderOnlinesResource extends Resource
                 ->columnSpan(['lg' => 1]),
         ])
             ->columns(3)
-            ->disabled(fn(?SalesOrderOnline $record) => $record !== null && $record->delivery_status == 2);
+            ->disabled(fn(?SalesOrderOnline $record) => $record !== null && in_array($record->delivery_status, [2, 3]));
     }
 
     public static function table(Table $table): Table
@@ -131,14 +130,6 @@ class SalesOrderOnlinesResource extends Resource
                     ->toggleable(),
 
                 DeliveryAddressColumn::make('deliveryAddress'),
-
-                TextColumn::make('receipt_no')
-                    ->label('Receipt No')
-                    ->searchable()
-                    ->copyable()
-                    ->copyMessage('Receipt number copied')
-                    ->copyMessageDuration(1500)
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('detailSalesOrders')
                     ->label('Orders')
@@ -254,9 +245,9 @@ class SalesOrderOnlinesResource extends Resource
             ->actions([
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make()
-                        ->visible(fn(SalesOrderOnline $record) => !in_array($record->delivery_status, [2])),
+                        ->visible(fn(SalesOrderOnline $record) => !in_array($record->delivery_status, [2, 3])),
                     \Filament\Actions\ViewAction::make()
-                        ->visible(fn(SalesOrderOnline $record) => in_array($record->delivery_status, [2])),
+                        ->visible(fn(SalesOrderOnline $record) => in_array($record->delivery_status, [2, 3])),
                     DeleteAction::make()
                         ->visible(fn () => Auth::user()->hasRole('admin')),
                     RestoreAction::make()
