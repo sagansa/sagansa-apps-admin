@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Panel;
 
 use App\Filament\Clusters\Store as ClustersStore;
 use App\Filament\Forms\BaseTextInput;
+use App\Filament\Forms\CurrencyInput;
+use App\Filament\Columns\CurrencyColumn;
 use Filament\Forms;
 use Filament\Tables;
 use App\Models\Store;
@@ -80,6 +82,10 @@ class StoreResource extends Resource
                             '7' => 'warung + gudang + produksi',
                             '8' => 'tidak aktif'
                         ]),
+
+                    CurrencyInput::make('daily_salary_amount')
+                        ->required()
+                        ->default(25000),
                 ]),
             ]),
         ]);
@@ -114,6 +120,9 @@ class StoreResource extends Resource
                             default => $state,
                         }
                     ),
+
+                CurrencyColumn::make('daily_salary_amount')
+                    ->sortable(),
             ])
             ->filters([])
             ->actions([
