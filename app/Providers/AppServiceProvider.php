@@ -33,6 +33,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (!$this->app->runningInConsole()) {
+            config(['filesystems.disks.public.url' => request()->getSchemeAndHttpHost() . '/storage']);
+        }
+
         User::observe(UserObserver::class);
         
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
