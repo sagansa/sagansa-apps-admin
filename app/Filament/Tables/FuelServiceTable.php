@@ -77,7 +77,26 @@ class FuelServiceTable
                 ->hidden(fn() => !Auth::user()->hasRole('admin'))
                 ->toggleable(isToggledHiddenByDefault: false),
 
-            PaymentStatusColumn::make('status'),
+            PaymentStatusColumn::make('status')
+                ->formatStateUsing(
+                    fn(string $state): string => match ($state) {
+                        '1' => 'Belum Diperiksa',
+                        '2' => 'Sudah Dibayar',
+                        '3' => 'Siap Dibayar',
+                        '4' => 'Periksa Ulang',
+                        default => $state,
+                    }
+                )
+                ->badge()
+                ->color(
+                    fn(string $state): string => match ($state) {
+                        '1' => 'warning',
+                        '2' => 'success',
+                        '3' => 'info',
+                        '4' => 'danger',
+                        default => 'gray',
+                    }
+                ),
 
             TextColumn::make('paymentReceipt')
                 ->hidden(fn() => !Auth::user()->hasRole('admin'))

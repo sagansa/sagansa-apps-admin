@@ -28,7 +28,26 @@ class DailySalaryTable
                     ->label('')
                     ->numeric(thousandsSeparator: '.')),
 
-            PaymentStatusColumn::make('status'),
+            PaymentStatusColumn::make('status')
+                ->formatStateUsing(
+                    fn(string $state): string => match ($state) {
+                        '1' => 'Belum Dibayar',
+                        '2' => 'Sudah Dibayar',
+                        '3' => 'Siap Dibayar',
+                        '4' => 'Perbaiki',
+                        default => $state,
+                    }
+                )
+                ->badge()
+                ->color(
+                    fn(string $state): string => match ($state) {
+                        '1' => 'warning',
+                        '2' => 'success',
+                        '3' => 'info',
+                        '4' => 'danger',
+                        default => 'gray',
+                    }
+                ),
 
             TextColumn::make('paymentType.name')
                 ->toggleable(isToggledHiddenByDefault: true),
