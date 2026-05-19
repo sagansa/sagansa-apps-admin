@@ -132,10 +132,10 @@ class SalesOrderDirectsResource extends Resource
 
                 TextColumn::make('receipt_no')->searchable(),
 
-                TextColumn::make('detailSalesOrders')
+                TextColumn::make('orders_list')
                     ->label('Orders')
                     ->html()
-                    ->formatStateUsing(function (SalesOrderDirect $record) {
+                    ->state(function (SalesOrderDirect $record) {
                         return implode('<br>', $record->detailSalesOrders->map(function ($item) {
                             $productName = $item->product?->name ?? 'Unknown Product';
                             $unit = $item->product?->unit?->unit ?? '';

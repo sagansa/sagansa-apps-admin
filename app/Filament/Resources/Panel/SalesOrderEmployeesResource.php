@@ -94,10 +94,10 @@ class SalesOrderEmployeesResource extends Resource
                 TextColumn::make('transferToAccount.transfer_account_name')
                     ->label('Transfer to Account'),
 
-                TextColumn::make('detailSalesOrders')
+                TextColumn::make('orders_list')
                     ->label('Orders')
                     ->html()
-                    ->formatStateUsing(function (SalesOrderEmployee $record) {
+                    ->state(function (SalesOrderEmployee $record) {
                         return implode('<br>', $record->detailSalesOrders->map(function ($item) {
                             return "{$item->product->name} ({$item->quantity} {$item->product->unit->unit})";
                         })->toArray());

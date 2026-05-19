@@ -131,10 +131,10 @@ class SalesOrderOnlinesResource extends Resource
 
                 DeliveryAddressColumn::make('deliveryAddress'),
 
-                TextColumn::make('detailSalesOrders')
+                TextColumn::make('orders_list')
                     ->label('Orders')
                     ->html()
-                    ->formatStateUsing(function (SalesOrderOnline $record) {
+                    ->state(function (SalesOrderOnline $record) {
                         return implode('<br>', $record->detailSalesOrders->map(function ($item) {
                             return "{$item->product->name} ({$item->quantity} {$item->product->unit->unit})";
                         })->toArray());
