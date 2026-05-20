@@ -204,5 +204,49 @@ class RoleResource extends Resource implements HasShieldPermissions
         return Utils::getConfig()->shield_resource->is_globally_searchable && count(static::getGloballySearchableAttributes()) && static::canViewAny();
     }
 
+    protected static function getLegacyResourcePermissionKey(string $resourceFqcn, string $action): string
+    {
+        $cleanName = str_replace(['App\Filament\Resources\\', 'Resource'], '', $resourceFqcn);
+        $segments = explode('\\', $cleanName);
+        $formattedSegments = array_map(function($segment) {
+            return Str::snake($segment, '::');
+        }, $segments);
+        $resourceKey = implode('::', $formattedSegments);
+        $prefix = Str::snake($action);
+        return "{$prefix}_{$resourceKey}";
+    }
 
+    public static function getResourcePermissionOptions(array $entity): array
+    {
+        $options = [];
+        foreach ($entity['permissions'] as $action => $permission) {
+            $legacyKey = static::getLegacyResourcePermissionKey($entity['resourceFqcn'], $action);
+            $options[$legacyKey] = $permission['label'];
+        }
+        return $options;
+    }
+
+    public static function getPageOptions(): array
+    {
+        $options = [];
+        foreach (FilamentShield::getPages() as $page) {
+            $className = class_basename($page['pageFqcn']);
+            $legacyKey = "page_{$className}";
+            $label = reset($page['permissions']) ?: $className;
+            $options[$legacyKey] = $label;
+        }
+        return $options;
+    }
+
+    public static function getWidgetOptions(): array
+    {
+        $options = [];
+        foreach (FilamentShield::getWidgets() as $widget) {
+            $className = class_basename($widget['widgetFqcn']);
+            $legacyKey = "widget_{$className}";
+            $label = reset($widget['permissions']) ?: $className;
+            $options[$legacyKey] = $label;
+        }
+        return $options;
+    }
 }
