@@ -152,6 +152,11 @@ class AppVersionResource extends Resource
         return [];
     }
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('menu_system_settings') ?? false;
+    }
+
     public static function getPages(): array
     {
         return [

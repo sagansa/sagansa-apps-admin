@@ -65,6 +65,11 @@ class ProductViewResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('menu_master_data') ?? false;
+    }
+
     public static function getPages(): array
     {
         return [

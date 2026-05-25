@@ -15,7 +15,7 @@ return [
             'pages' => true,
             'widgets' => true,
             'resources' => true,
-            'custom_permissions' => false,
+            'custom_permissions' => true,
         ],
     ],
 
@@ -57,7 +57,7 @@ return [
         'pages' => true,
         'widgets' => true,
         'resources' => true,
-        'custom_permissions' => false,
+        'custom_permissions' => true,
     ],
 
     'generator' => [
@@ -88,6 +88,11 @@ return [
 
     'register_role_policy' => [
         'enabled' => true,
+    ],
+
+    'custom_permissions' => [
+        'menu_master_data' => 'Access Master Data',
+        'menu_system_settings' => 'Access System Settings',
     ],
 
 ];
