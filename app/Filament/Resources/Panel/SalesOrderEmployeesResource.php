@@ -17,6 +17,7 @@ use App\Filament\Resources\Panel\SalesOrderEmployeesResource\Pages;
 use App\Models\DeliveryAddress;
 use App\Models\TransferToAccount;
 use App\Models\SalesOrderEmployee;
+use App\Support\PublicStorageUrl;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
@@ -82,7 +83,7 @@ class SalesOrderEmployeesResource extends Resource
                     ->formatStateUsing(fn ($state) => $state ? 'Lihat' : '-')
                     ->icon(fn ($state) => $state ? 'heroicon-o-photo' : null)
                     ->color('info')
-                    ->url(fn($record) => $record->image_payment ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_payment) : null)
+                    ->url(fn($record) => PublicStorageUrl::from($record->image_payment))
                     ->openUrlInNewTab(),
 
                 TextColumn::make('delivery_date')

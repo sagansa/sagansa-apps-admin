@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicStorageUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -59,6 +60,6 @@ class SalesOrderOnline extends Model
     // Atribut atau accessor untuk URL gambar
     public function getImagePaymentUrlAttribute()
     {
-        return asset('storage/' . $this->image_payment); // Menyesuaikan dengan lokasi penyimpanan gambar Anda
+        return PublicStorageUrl::from($this->image_payment);
     }
 }

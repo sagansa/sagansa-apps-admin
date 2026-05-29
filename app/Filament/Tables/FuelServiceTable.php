@@ -5,6 +5,7 @@ namespace App\Filament\Tables;
 use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\PaymentStatusColumn;
+use App\Support\PublicStorageUrl;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
@@ -16,7 +17,7 @@ class FuelServiceTable
     {
         return [
             ImageOpenUrlColumn::make('image')
-                ->url(fn($record) => 'https://sagansa.id/storage/' . $record->image),
+                ->url(fn($record) => PublicStorageUrl::from($record->image)),
 
             TextColumn::make('fuel_service')
                 ->formatStateUsing(

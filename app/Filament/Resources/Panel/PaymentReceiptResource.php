@@ -26,6 +26,7 @@ use App\Models\DailySalary;
 use App\Models\FuelService;
 use App\Models\InvoicePurchase;
 use App\Models\Supplier;
+use App\Support\PublicStorageUrl;
 use Filament\Forms\Components\Radio;
 use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Actions\ActionGroup;
@@ -435,11 +436,11 @@ class PaymentReceiptResource extends Resource
                 ImageOpenUrlColumn::make('image')
                     ->label('Payment')
                     ->disk('public') // Paksa gunakan disk public
-                    ->url(fn($record) => $record->image ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image) : null),
+                    ->url(fn($record) => PublicStorageUrl::from($record->image)),
                 ImageOpenUrlColumn::make('image_adjust')
                     ->label('Adjust')
                     ->disk('public') // Paksa gunakan disk public
-                    ->url(fn($record) => $record->image_adjust ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_adjust) : null),
+                    ->url(fn($record) => PublicStorageUrl::from($record->image_adjust)),
 
                 SupplierColumn::make('Supplier')
                     ->visible(fn($livewire) => $livewire->activeTab !== 'daily salary'),

@@ -4,6 +4,7 @@ namespace App\Filament\Tables;
 
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\StatusColumn;
+use App\Support\PublicStorageUrl;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,7 +16,7 @@ class TransferCardTable
             \Filament\Tables\Columns\Layout\Split::make([
                 ImageOpenUrlColumn::make('image')
                     ->visibility('public')
-                    ->url(fn($record) => asset('storage/' . $record->image))
+                    ->url(fn($record) => PublicStorageUrl::from($record->image))
                     ->grow(false),
 
                 \Filament\Tables\Columns\Layout\Stack::make([

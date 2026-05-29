@@ -36,6 +36,7 @@ use Filament\Schemas\Components\Grid as InfoGrid;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Support\Enums\FontWeight;
 use App\Models\TransferToAccount;
+use App\Support\PublicStorageUrl;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\Placeholder;
@@ -104,7 +105,7 @@ class SalesOrderDirectsResource extends Resource
                     ->formatStateUsing(fn ($state) => $state ? 'Lihat' : '-')
                     ->icon(fn ($state) => $state ? 'heroicon-o-photo' : null)
                     ->color('info')
-                    ->url(fn($record) => $record->image_payment ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_payment) : null)
+                    ->url(fn($record) => PublicStorageUrl::from($record->image_payment))
                     ->openUrlInNewTab()
                     ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('customer')),
 
@@ -113,7 +114,7 @@ class SalesOrderDirectsResource extends Resource
                     ->formatStateUsing(fn ($state) => $state ? 'Lihat' : '-')
                     ->icon(fn ($state) => $state ? 'heroicon-o-photo' : null)
                     ->color('info')
-                    ->url(fn($record) => $record->image_delivery ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_delivery) : null)
+                    ->url(fn($record) => PublicStorageUrl::from($record->image_delivery))
                     ->openUrlInNewTab(),
 
                 TextColumn::make('orderedBy.name')
@@ -464,7 +465,7 @@ class SalesOrderDirectsResource extends Resource
                         )
                         ->content(function ($record) {
                             if (!$record || !$record->image_payment) return '-';
-                            $url = \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_payment);
+                            $url = PublicStorageUrl::from($record->image_payment);
                             return new HtmlString("<a href='{$url}' target='_blank'><img src='{$url}' style='max-width: 100%; height: auto; border-radius: 0.5rem; border: 1px solid #e5e7eb;' /></a>");
                         }),
                 ]),
@@ -491,7 +492,7 @@ class SalesOrderDirectsResource extends Resource
                         )
                         ->content(function ($record) {
                             if (!$record || !$record->image_delivery) return '-';
-                            $url = \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_delivery);
+                            $url = PublicStorageUrl::from($record->image_delivery);
                             return new HtmlString("<a href='{$url}' target='_blank'><img src='{$url}' style='max-width: 100%; height: auto; border-radius: 0.5rem; border: 1px solid #e5e7eb;' /></a>");
                         }),
                 ]),

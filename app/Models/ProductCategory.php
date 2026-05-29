@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicStorageUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -127,7 +128,7 @@ class ProductCategory extends Model
     // Method untuk mendapatkan path gambar kategori (jika ada)
     public function getImagePathAttribute()
     {
-        return $this->image ? asset('storage/categories/' . $this->image) : null;
+        return $this->image ? PublicStorageUrl::from('categories/' . $this->image) : null;
     }
 
     // Method untuk generate slug (jika diperlukan)

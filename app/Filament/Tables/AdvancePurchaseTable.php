@@ -6,6 +6,7 @@ use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\StatusColumn;
 use App\Models\AdvancePurchase;
+use App\Support\PublicStorageUrl;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\SelectColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -17,7 +18,7 @@ class AdvancePurchaseTable
     {
         return [
             ImageOpenUrlColumn::make('image')->visibility('public')
-                ->url(fn($record) => 'https://sagansa.id/storage/' . $record->image),
+                ->url(fn($record) => PublicStorageUrl::from($record->image)),
 
             TextColumn::make('store.nickname'),
 

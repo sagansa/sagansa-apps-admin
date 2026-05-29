@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicStorageUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -24,6 +25,6 @@ class ProductImage extends Model
             return 'https://placehold.co/600x400?text=No+Image';
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($value);
+        return PublicStorageUrl::from($value);
     }
 }

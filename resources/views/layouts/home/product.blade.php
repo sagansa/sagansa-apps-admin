@@ -10,7 +10,7 @@
                 @foreach ($products as $product)
                     <div
                         class="p-4 overflow-hidden transition-transform transform bg-white rounded-lg shadow-lg hover:scale-105">
-                        <img src="{{ $product->image ? asset('storage/' . $product->image) : asset('images/default-image.jpg') }}"
+                        <img src="{{ $product->image_url ?: asset('images/default-image.jpg') }}"
                             alt="{{ $product->name }}" class="object-cover w-full h-32">
                         <h3 class="mt-2 text-sm font-bold text-green">{{ $product->name }}</h3>
                         {{-- <p class="text-gray-600">{!! $product->description !!}</p> --}}

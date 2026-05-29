@@ -2,18 +2,20 @@
 
 namespace App\Helpers;
 
+use App\Support\PublicStorageUrl;
+
 class ImageHelper
 {
     public static function getImageUrl($path, $thumbnail = false)
     {
-        $apiUrl = config('services.api.url', 'https://api.sagansa.id');
-        $baseUrl = $apiUrl . '/storage/';
-
-        if ($thumbnail) {
-            // Tambahkan prefix thumbnail jika diperlukan
-            return $baseUrl . 'thumbnails/' . $path;
+        if (!$path) {
+            return null;
         }
 
-        return $baseUrl . $path;
+        if ($thumbnail) {
+            return PublicStorageUrl::from('thumbnails/' . ltrim($path, '/'));
+        }
+
+        return PublicStorageUrl::from($path);
     }
 }

@@ -25,6 +25,7 @@ use Filament\Forms\Components\TextInput;
 use App\Filament\Resources\Panel\SupplierResource\Pages;
 use App\Filament\Resources\Panel\SupplierResource\RelationManagers;
 use App\Models\DeliveryAddress;
+use App\Support\PublicStorageUrl;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Schemas\Components\Group;
 use Filament\Actions\ActionGroup;
@@ -116,7 +117,7 @@ class SupplierResource extends Resource
             ->columns([
 
                 ImageOpenUrlColumn::make('image')
-                    ->url(fn($record) => 'https://sagansa.id/storage/' . $record->image)
+                    ->url(fn($record) => PublicStorageUrl::from($record->image))
                     ->alignLeft(),
 
                 TextColumn::make('name')

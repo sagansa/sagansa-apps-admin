@@ -22,6 +22,7 @@ use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\Panel\UtilityUsageResource\Pages;
 use App\Models\Utility;
+use App\Support\PublicStorageUrl;
 use Filament\Actions\ActionGroup;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Collection;
@@ -101,7 +102,7 @@ class UtilityUsageResource extends Resource
             ->columns([
                 ImageOpenUrlColumn::make('image')
                     ->visibility('public')
-                    ->url(fn($record) => 'https://sagansa.id/storage/' . $record->image),
+                    ->url(fn($record) => PublicStorageUrl::from($record->image)),
 
                 TextColumn::make('created_at')
                     ->sortable()

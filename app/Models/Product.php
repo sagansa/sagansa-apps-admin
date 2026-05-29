@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Support\Str;
+use App\Support\PublicStorageUrl;
 use App\Models\DetailInvoice;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -26,7 +27,7 @@ class Product extends Model
             return 'https://placehold.co/600x400?text=No+Image';
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($path);
+        return PublicStorageUrl::from($path);
     }
 
     protected function casts(): array

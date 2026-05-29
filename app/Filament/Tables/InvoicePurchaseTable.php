@@ -6,6 +6,7 @@ use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\SupplierColumn;
 use App\Models\InvoicePurchase;
+use App\Support\PublicStorageUrl;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ class InvoicePurchaseTable
         return [
             ImageOpenUrlColumn::make('image')
                 ->visibility('public')
-                ->url(fn($record) => 'https://sagansa.id/storage/' . $record->image),
+                ->url(fn($record) => PublicStorageUrl::from($record->image)),
 
             TextColumn::make('date')
                 ->sortable(),

@@ -27,6 +27,7 @@ use App\Filament\Forms\ImageInput;
 use App\Filament\Forms\SalesProductForm;
 use App\Filament\Forms\StoreSelect;
 use App\Models\SalesOrderOnline;
+use App\Support\PublicStorageUrl;
 use Filament\Forms\Components\Radio;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -90,7 +91,7 @@ class SalesOrderOnlinesResource extends Resource
                     ->formatStateUsing(fn ($state) => $state ? 'Lihat' : '-')
                     ->icon(fn ($state) => $state ? 'heroicon-o-photo' : null)
                     ->color('info')
-                    ->url(fn($record) => $record->image_payment ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_payment) : null)
+                    ->url(fn($record) => PublicStorageUrl::from($record->image_payment))
                     ->openUrlInNewTab(),
 
                 TextColumn::make('image_delivery')
@@ -98,7 +99,7 @@ class SalesOrderOnlinesResource extends Resource
                     ->formatStateUsing(fn ($state) => $state ? 'Lihat' : '-')
                     ->icon(fn ($state) => $state ? 'heroicon-o-photo' : null)
                     ->color('info')
-                    ->url(fn($record) => $record->image_delivery ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image_delivery) : null)
+                    ->url(fn($record) => PublicStorageUrl::from($record->image_delivery))
                     ->openUrlInNewTab(),
 
                 TextColumn::make('receipt_no')
