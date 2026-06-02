@@ -24,14 +24,14 @@ class AdvancePurchaseTable
 
             TextColumn::make('date'),
 
-            TextColumn::make('detailAdvancePurchases')
+            TextColumn::make('detail_purchases_summary')
                 ->label('Detail Purchases')
                 ->html()
-                ->formatStateUsing(function (AdvancePurchase $record) {
-                    return implode('<br>', $record->detailAdvancePurchases->map(function ($item) {
+                ->state(function (AdvancePurchase $record): string {
+                    return $record->detailAdvancePurchases->map(function ($item) {
                         $unitPrice = number_format($item->unit_price, 0, ',', '.'); // add thousands separator
                         return "{$item->product->name} ({$item->quantity} {$item->product->unit->unit}) - Rp {$unitPrice}"; // add "Rp" prefix
-                    })->toArray());
+                    })->implode('<br>');
                 })
                 ->extraAttributes(['class' => 'whitespace-pre-wrap']),
 

@@ -91,8 +91,8 @@ class DetailRequestResource extends Resource
                 TextColumn::make('store.nickname')
                     ->label('Store'),
 
-                TextColumn::make('detailInvoices.quantity_product')
-                    ->formatStateUsing(fn (DetailRequest $record) => implode(', ', $record->detailInvoices->pluck('quantity_product')->all()))
+                TextColumn::make('quantity_purchase_summary')
+                    ->state(fn (DetailRequest $record): string => $record->detailInvoices->pluck('quantity_product')->implode(', '))
                     ->label('Qty Purchase'),
 
                 TextColumn::make('quantity_plan')

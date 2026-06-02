@@ -85,10 +85,10 @@ class RequestPurchaseResource extends Resource
 
                 TextColumn::make('date'),
 
-                TextColumn::make('detailRequests')
+                TextColumn::make('orders_summary')
                     ->label('Orders')
-                    ->formatStateUsing(function (RequestPurchase $record) {
-                        return implode('<br>', $record->detailRequests->map(function ($item) {
+                    ->state(function (RequestPurchase $record): string {
+                        return $record->detailRequests->map(function ($item) {
                             $statusLabels = [
                                 '1' => '<span class="badge bg-warning">process</span>',
                                 '2' => '<span class="badge bg-success">done</span>',
@@ -102,7 +102,7 @@ class RequestPurchaseResource extends Resource
                             $status = $statusLabels[$item->status] ?? '<span class="badge bg-default">unknown</span>';
 
                             return "{$item->product->name} = {$item->quantity_plan} {$item->product->unit->unit} ({$status})";
-                        })->toArray());
+                        })->implode('<br>');
                     })
                     ->html() // Mengizinkan HTML dalam kolom
                     ->extraAttributes(['class' => 'whitespace-pre-wrap']),
