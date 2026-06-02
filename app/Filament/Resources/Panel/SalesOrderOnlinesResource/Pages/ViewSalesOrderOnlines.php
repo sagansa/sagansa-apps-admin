@@ -6,7 +6,7 @@ use App\Filament\Entries\DeliveryStatusEntry;
 use App\Filament\Resources\Panel\SalesOrderOnlinesResource;
 use Filament\Actions;
 use Filament\Schemas\Components\Grid;
-use Filament\Infolists\Components\Group;
+use Filament\Schemas\Components\Group;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Schemas\Components\Section;
