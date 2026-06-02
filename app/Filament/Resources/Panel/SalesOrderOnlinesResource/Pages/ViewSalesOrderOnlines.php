@@ -10,7 +10,6 @@ use Filament\Infolists\Components\Group;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Schemas\Components\Section;
-use Filament\Infolists\Components\Split;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 use Filament\Resources\Pages\ViewRecord;
@@ -26,34 +25,32 @@ class ViewSalesOrderOnlines extends ViewRecord
             ->schema([
                 Section::make('Order')
                     ->schema([
-                        Split::make([
-                            Grid::make(2)
-                                ->schema([
-                                    Group::make([
-                                        TextEntry::make('store.nickname'),
-                                        TextEntry::make('delivery_date'),
-                                        TextEntry::make('onlineShopProvider.name'),
-                                        TextEntry::make('deliveryService.name'),
-                                        TextEntry::make('deliveryAddress.name'),
-                                        ImageEntry::make('image_payment')
-                                            ->size(40)
-                                            ->square(),
-                                    ]),
-                                    Group::make([
-                                        TextEntry::make('receipt_no'),
-                                        DeliveryStatusEntry::make('delivery_status'),
-                                        TextEntry::make('orderedBy.name'),
-                                        TextEntry::make('assignedBy.name'),
-                                        TextEntry::make('total_price')
-                                            ->prefix('Rp ')
-                                            ->numeric(
-                                                thousandsSeparator: '.'
-                                            ),
-                                        ImageEntry::make('image_delivery'),
-                                        ])
-                                    ]),
+                        Grid::make(2)
+                            ->schema([
+                                Group::make([
+                                    TextEntry::make('store.nickname'),
+                                    TextEntry::make('delivery_date'),
+                                    TextEntry::make('onlineShopProvider.name'),
+                                    TextEntry::make('deliveryService.name'),
+                                    TextEntry::make('deliveryAddress.name'),
+                                    ImageEntry::make('image_payment')
+                                        ->size(40)
+                                        ->square(),
+                                ]),
+                                Group::make([
+                                    TextEntry::make('receipt_no'),
+                                    DeliveryStatusEntry::make('delivery_status'),
+                                    TextEntry::make('orderedBy.name'),
+                                    TextEntry::make('assignedBy.name'),
+                                    TextEntry::make('total_price')
+                                        ->prefix('Rp ')
+                                        ->numeric(
+                                            thousandsSeparator: '.'
+                                        ),
+                                    ImageEntry::make('image_delivery'),
                                 ]),
                             ]),
+                    ]),
 
 
                 Section::make('Detail Order')

@@ -9,7 +9,6 @@ use App\Models\DeliveryAddress;
 use Filament\Schemas\Components\Grid;
 use Filament\Infolists\Components\Group;
 use Filament\Schemas\Components\Section;
-use Filament\Infolists\Components\Split;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -27,7 +26,7 @@ class ViewDeliveryAddress extends ViewRecord
         return $infolist
             ->schema([
                 Section::make('Detail Delivery Address')
-                    ->schema([Split::make([
+                    ->schema([
                         Grid::make(2)
                             ->schema([
                                 Group::make([
@@ -48,7 +47,6 @@ class ViewDeliveryAddress extends ViewRecord
                                     TextEntry::make('postalCode.postal_code'),
                                 ])
                             ])
-                        ])
                     ])
                 ]);
     }
