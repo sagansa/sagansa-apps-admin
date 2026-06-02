@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class PublicStorageUrl
 {
@@ -41,20 +40,6 @@ class PublicStorageUrl
             $path = substr($path, strlen('storage/'));
         }
 
-        if ($path === '') {
-            return null;
-        }
-
-        $url = Storage::disk('public')->url($path);
-
-        if (Str::startsWith($url, '//')) {
-            return 'https:' . $url;
-        }
-
-        if (! Str::startsWith($url, ['http://', 'https://', '/'])) {
-            return 'https://' . ltrim($url, '/');
-        }
-
-        return $url;
+        return $path === '' ? null : Storage::disk('public')->url($path);
     }
 }
