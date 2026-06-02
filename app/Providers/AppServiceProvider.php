@@ -55,9 +55,9 @@ class AppServiceProvider extends ServiceProvider
             });
         }
 
-        // FileUpload::configureUsing(function (FileUpload $fileUpload) {
-        //     $fileUpload->hiddenLabel();
-        // });
+        FileUpload::configureUsing(function (FileUpload $fileUpload) {
+            $fileUpload->fetchFileInformation(false);
+        });
 
         // TextInput::configureUsing(function (TextInput $textInput) {
         //     $textInput->inlineLabel();
