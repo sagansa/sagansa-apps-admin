@@ -41,7 +41,7 @@ return [
     |
     */
 
-    'default_filesystem_disk' => env('FILESYSTEM_DISK', 'public'),
+    'default_filesystem_disk' => env('FILAMENT_FILESYSTEM_DISK', env('FILESYSTEM_DISK', 'public')),
 
     /*
     |--------------------------------------------------------------------------
@@ -85,31 +85,6 @@ return [
     */
 
     'livewire_loading_delay' => 'default',
-
-    // 'pages' => [
-    //     // ...
-    //     'remaining-stock-products' => [
-    //         'view' => 'filament.pages.remaining-stock-products',
-    //         'title' => 'Remaining Stock Products',
-    //     ],
-    // ],
-
-    // 'navigation' => [
-    //     // ...
-    //     [
-    //         'label' => 'Remaining Stock Products',
-    //         'url' => route('remaining-stock-products'),
-    //         'icon' => 'heroicon-o-document-text',
-    //     ],
-    // ],
-
-    // 'routes' => [
-    //     // ...
-    //     'remaining-stock-products' => [
-    //         'uri' => '/remaining-stock-products',
-    //         'view' => 'remaining-stock-products',
-    //     ],
-    // ],
 
     'auth' => [
         'guard' => env('FILAMENT_AUTH_GUARD', 'web'),
