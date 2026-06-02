@@ -30,10 +30,10 @@ class InvoicePurchaseTable
 
             SupplierColumn::make('Supplier'),
 
-            TextColumn::make('detailInvoices')
+            TextColumn::make('detail_purchases_summary')
                 ->label('Detail Purchases')
                 ->html()
-                ->formatStateusing(function (InvoicePurchase $record) {
+                ->state(function (InvoicePurchase $record): string {
                     return $record->detailInvoices
                         ->unique(function ($item) {
                             return implode('|', [
