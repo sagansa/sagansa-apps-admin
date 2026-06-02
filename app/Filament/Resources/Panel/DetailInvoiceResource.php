@@ -8,7 +8,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Actions\ViewAction;
+use Filament\Actions\ViewAction;
 use App\Filament\Resources\Panel\DetailInvoiceResource\Pages;
 use App\Filament\Clusters\Purchases;
 
