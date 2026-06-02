@@ -34,10 +34,22 @@ class InvoicePurchaseTable
                 ->label('Detail Purchases')
                 ->html()
                 ->formatStateusing(function (InvoicePurchase $record) {
-                    return implode('<br>', $record->detailInvoices->map(function ($item) {
-                        $subtotalInvoice = number_format($item->subtotal_invoice, 0, ',', '.'); // add thousands separator
-                        return "{$item->detailRequest->product->name} ({$item->quantity_product} {$item->detailRequest->product->unit->unit}) - Rp {$subtotalInvoice}"; // add "Rp" prefix
-                    })->toArray());
+                    return $record->detailInvoices
+                        ->unique(function ($item) {
+                            return implode('|', [
+                                $item->detail_request_id,
+                                $item->quantity_product,
+                                $item->subtotal_invoice,
+                            ]);
+                        })
+                        ->map(function ($item) {
+                            $product = $item->detailRequest?->product;
+                            $unit = $product?->unit?->unit ?? '';
+                            $subtotalInvoice = number_format($item->subtotal_invoice, 0, ',', '.');
+
+                            return "{$product?->name} ({$item->quantity_product} {$unit}) - Rp {$subtotalInvoice}";
+                        })
+                        ->implode('<br>');
                 }),
 
             CurrencyColumn::make('total_price')
