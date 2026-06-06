@@ -96,7 +96,7 @@ class PresenceResource extends Resource
                         ->nullable()
                         ->relationship('createdBy', 'name')
                         ->searchable()
-                        ->disabled()
+                        // ->disabled()
                         ->preload()
                         ->native(false),
 
