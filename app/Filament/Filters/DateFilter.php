@@ -12,20 +12,22 @@ class DateFilter extends Filter
     {
         parent::setUp();
 
+        $column = $this->getName();
+
         $this
             ->form([
                 DatePicker::make('date_from'),
                 DatePicker::make('date_until'),
             ])
-            ->query(function (Builder $query, array $data): Builder {
+            ->query(function (Builder $query, array $data) use ($column): Builder {
                 return $query
                     ->when(
-                        $data['date_from'],
-                        fn (Builder $query, $date): Builder => $query->whereDate('delivery_date', '>=', $date),
+                        $data['date_from'] ?? null,
+                        fn (Builder $query, $date): Builder => $query->whereDate($column, '>=', $date),
                     )
                     ->when(
-                        $data['date_until'],
-                        fn (Builder $query, $date): Builder => $query->whereDate('delivery_date', '<=', $date),
+                        $data['date_until'] ?? null,
+                        fn (Builder $query, $date): Builder => $query->whereDate($column, '<=', $date),
                     );
             });
     }
