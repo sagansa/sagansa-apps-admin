@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Panel;
 
 use App\Filament\Clusters\HRD;
+use App\Filament\Filters\DateFilter;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use Filament\Forms;
 use Filament\Tables;
@@ -186,6 +187,8 @@ class PresenceResource extends Resource
                     ->getStateUsing(fn($record) => 'Rp ' . number_format($record->calculateDailySalary(), 0, ',', '.')),
             ])
             ->filters([
+                DateFilter::make('check_in'),
+
                 SelectFilter::make('created_by_id')
                     ->label('Created By')
                     ->searchable()
