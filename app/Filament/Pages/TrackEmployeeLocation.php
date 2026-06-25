@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class TrackEmployeeLocation extends Page
 {
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-map-pin';
+    // protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-map-pin';
 
     protected static string | \UnitEnum | null $navigationGroup = 'HRD';
 

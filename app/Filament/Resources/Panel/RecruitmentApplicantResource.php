@@ -27,7 +27,7 @@ class RecruitmentApplicantResource extends Resource
 
     protected static ?string $cluster = HRD::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-user-plus';
+    // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-user-plus';
 
     public static function form(Schema $form): Schema
     {
