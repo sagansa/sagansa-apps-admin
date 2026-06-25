@@ -39,4 +39,11 @@ return [
         'url' => env('API_URL', 'https://api.sagansa.id'),
     ],
 
+    // Token Sanctum admin untuk memanggil services/api (trigger FCM lokasi
+    // on-demand). Berbagi DB auth dgn services/api. Generate via tinker di
+    // services/api: $user->createToken('admin-tracking')->plainTextToken.
+    'tracking' => [
+        'api_token' => env('TRACKING_API_TOKEN'),
+    ],
+
 ];

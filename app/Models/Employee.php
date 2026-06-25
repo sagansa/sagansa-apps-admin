@@ -23,6 +23,15 @@ class Employee extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Titik lokasi tracking pegawai, diakses melalui user (employee_locations
+     * disimpan per user_id pada kolom created_by_id, cross-DB).
+     */
+    public function locations()
+    {
+        return $this->hasMany(EmployeeLocation::class, 'created_by_id', 'user_id');
+    }
+
     public function bank()
     {
         return $this->belongsTo(Bank::class);

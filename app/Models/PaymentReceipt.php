@@ -41,6 +41,17 @@ class PaymentReceipt extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Relasi helper untuk selector "Created By" pada form fuel/service
+     * payment receipt. Tidak terpikir sebagai kolom fisik di tabel — hanya
+     * dipakai Filament Select relationship untuk memfilter fuel/service
+     * berdasarkan pembuat (created_by) fuel/service.
+     */
+    public function fuelServiceCreatedBy()
+    {
+        return $this->belongsTo(User::class, 'fuel_service_created_by');
+    }
+
     public function getPaymentReceiptNameAttribute()
     {
         $paymentReceiptDetails = [

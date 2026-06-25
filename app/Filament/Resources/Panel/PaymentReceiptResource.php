@@ -81,6 +81,56 @@ class PaymentReceiptResource extends Resource
                             $set('transfer_amount', 0);
                         }),
 
+                    Select::make('fuel_service_created_by')
+                        ->label('Created By')
+                        ->visible(fn($get) => $get('payment_for') == '1')
+                        ->hidden(fn($operation) => $operation === 'edit' || $operation === 'view')
+                        ->relationship(
+                            name: 'fuelServiceCreatedBy',
+                            modifyQueryUsing: fn(Builder $query) => $query
+                                ->whereHas('fuelServices', fn(Builder $q) => $q
+                                    ->where('payment_type_id', '1')
+                                    ->where('status', '1'))
+                                ->orderBy('name', 'asc'),
+                        )
+                        ->getOptionLabelFromRecordUsing(fn(\App\Models\User $record) => "{$record->name}")
+                        ->searchable()
+                        ->preload()
+                        ->reactive()
+                        ->dehydrated(false)
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            if (!$state) {
+                                $set('fuelServices', []);
+                                $set('total_amount', 0);
+                                $set('transfer_amount', 0);
+
+                                return;
+                            }
+
+                            $targetIds = [$state];
+                            try {
+                                $user = \App\Models\User::find($state);
+                                if ($user && array_key_exists('uuid', $user->getAttributes()) && $user->uuid) {
+                                    $targetIds[] = $user->uuid;
+                                }
+                            } catch (\Exception $e) {
+                            }
+
+                            $fuelServices = FuelService::query()
+                                ->whereIn('created_by_id', $targetIds)
+                                ->where('payment_type_id', '1')
+                                ->where('status', '1')
+                                ->orderBy('date', 'desc')
+                                ->get(['id', 'amount']);
+
+                            $fuelServiceIds = $fuelServices->pluck('id')->toArray();
+                            $totalAmount = $fuelServices->sum('amount');
+
+                            $set('fuelServices', $fuelServiceIds);
+                            $set('total_amount', $totalAmount);
+                            $set('transfer_amount', $totalAmount);
+                        }),
+
                     Select::make('fuelServices')
                         ->visible(fn($get) => $get('payment_for') == '1')
                         ->required(fn($get) => $get('payment_for') == '1' && fn($operation) => $operation === 'create')
@@ -96,8 +146,19 @@ class PaymentReceiptResource extends Resource
                                 ->where('payment_type_id', '1')
                                 ->where('status', '1')
                                 ->when(
-                                    filled($get('supplier_id')),
-                                    fn(Builder $query) => $query->where('supplier_id', $get('supplier_id'))
+                                    $get('fuel_service_created_by'),
+                                    function ($q, $createdById) {
+                                        $targetIds = [$createdById];
+                                        try {
+                                            $user = \App\Models\User::find($createdById);
+                                            if ($user && array_key_exists('uuid', $user->getAttributes()) && $user->uuid) {
+                                                $targetIds[] = $user->uuid;
+                                            }
+                                        } catch (\Exception $e) {
+                                        }
+
+                                        $q->whereIn('created_by_id', $targetIds);
+                                    }
                                 )
                                 ->orderBy('date', 'desc')
                         )
@@ -110,21 +171,14 @@ class PaymentReceiptResource extends Resource
                             if (empty($fuelServiceIds)) {
                                 $set('total_amount', 0);
                                 $set('transfer_amount', 0);
-                                $set('supplier_id', null);
 
                                 return;
                             }
 
-                            $fuelServices = FuelService::query()
-                                ->whereIn('id', $fuelServiceIds)
-                                ->get(['id', 'amount', 'supplier_id']);
-
-                            $totalAmount = $fuelServices->sum('amount');
-                            $supplierIds = $fuelServices->pluck('supplier_id')->filter()->unique();
+                            $totalAmount = FuelService::whereIn('id', $fuelServiceIds)->sum('amount');
 
                             $set('total_amount', $totalAmount);
                             $set('transfer_amount', $totalAmount);
-                            $set('supplier_id', $supplierIds->count() === 1 ? $supplierIds->first() : null);
                         }),
 
                     Select::make('user_id')
@@ -273,26 +327,12 @@ class PaymentReceiptResource extends Resource
 
                     Select::make('supplier_id')
                         ->label(__('crud.suppliers.itemTitle'))
-                        ->visible(fn($get) => $get('payment_for') == '3' || $get('payment_for') == '1')
-                        ->required(fn($get) => $get('payment_for') == '3' || $get('payment_for') == '1')
-                        ->disabled(fn($get) => $get('payment_for') == '1' && filled($get('fuelServices')))
-                        ->dehydrated()
+                        ->visible(fn($get) => $get('payment_for') == '3')
+                        ->required(fn($get) => $get('payment_for') == '3')
                         ->relationship(
                             name: 'supplier',
-                            modifyQueryUsing: fn(Builder $query, callable $get) => $query
+                            modifyQueryUsing: fn(Builder $query) => $query
                                 ->where('status', '<>', '3')
-                                ->when(
-                                    $get('payment_for') == '1' && filled($get('fuelServices')),
-                                    fn(Builder $query) => $query->whereIn(
-                                        'id',
-                                        FuelService::query()
-                                            ->whereIn('id', $get('fuelServices'))
-                                            ->pluck('supplier_id')
-                                            ->filter()
-                                            ->unique()
-                                            ->all()
-                                    )
-                                )
                                 ->orderBy('name', 'asc'),
                         )
                         ->getOptionLabelFromRecordUsing(fn(Supplier $record) => "{$record->supplier_name}")
