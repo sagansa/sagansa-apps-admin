@@ -86,12 +86,30 @@ class PaymentReceiptResource extends Resource
                         ->visible(fn($get) => $get('payment_for') == '1')
                         ->hidden(fn($operation) => $operation === 'edit' || $operation === 'view')
                         ->options(function () {
-                            return \App\Models\User::query()
-                                ->whereHas('fuelServices', fn(Builder $q) => $q
-                                    ->where('payment_type_id', '1')
-                                    ->where('status', '1'))
-                                ->orderBy('name', 'asc')
-                                ->pluck('name', 'id');
+                            // ID user yang menjadi created_by (baik numeric id maupun uuid)
+                            // dari fuel/service transfer yang belum dibayar.
+                            $createdByIds = FuelService::query()
+                                ->where('payment_type_id', '1')
+                                ->where('status', '1')
+                                ->pluck('created_by_id')
+                                ->filter()
+                                ->unique()
+                                ->all();
+
+                            // created_by_id bisa berupa numeric id ATAU uuid user.
+                            // Kumpulkan keduanya lalu resolve ke user.
+                            $numericIds = array_filter($createdByIds, 'is_numeric');
+                            $uuids = array_filter($createdByIds, fn($v) => !is_numeric($v));
+
+                            $users = collect();
+                            if (!empty($numericIds)) {
+                                $users = $users->merge(\App\Models\User::whereIn('id', $numericIds)->get(['id', 'name']));
+                            }
+                            if (!empty($uuids)) {
+                                $users = $users->merge(\App\Models\User::whereIn('uuid', $uuids)->get(['id', 'name']));
+                            }
+
+                            return $users->sortBy('name')->pluck('name', 'id');
                         })
                         ->searchable()
                         ->preload()
