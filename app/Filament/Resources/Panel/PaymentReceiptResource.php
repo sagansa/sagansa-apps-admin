@@ -85,15 +85,14 @@ class PaymentReceiptResource extends Resource
                         ->label('Created By')
                         ->visible(fn($get) => $get('payment_for') == '1')
                         ->hidden(fn($operation) => $operation === 'edit' || $operation === 'view')
-                        ->relationship(
-                            name: 'fuelServiceCreatedBy',
-                            modifyQueryUsing: fn(Builder $query) => $query
+                        ->options(function () {
+                            return \App\Models\User::query()
                                 ->whereHas('fuelServices', fn(Builder $q) => $q
                                     ->where('payment_type_id', '1')
                                     ->where('status', '1'))
-                                ->orderBy('name', 'asc'),
-                        )
-                        ->getOptionLabelFromRecordUsing(fn(\App\Models\User $record) => "{$record->name}")
+                                ->orderBy('name', 'asc')
+                                ->pluck('name', 'id');
+                        })
                         ->searchable()
                         ->preload()
                         ->reactive()
