@@ -65,7 +65,7 @@ class Presence extends Model
         }
 
         $checkOutTime = Carbon::parse($this->check_out);
-        $shiftEndTime = Carbon::parse($this->shiftStore->end_time); // Asumsikan ada kolom end_time di shiftStore
+        $shiftEndTime = Carbon::parse($this->shiftStore->shift_end_time); // Asumsikan ada kolom end_time di shiftStore
 
         // Jika check_out melewati hari, tambahkan satu hari ke shiftEndTime
         if ($checkOutTime->lessThan($shiftEndTime) && $checkOutTime->isNextDay()) {
@@ -88,7 +88,7 @@ class Presence extends Model
         }
 
         $checkOutTime = Carbon::parse($this->check_out);
-        $shiftEndTime = Carbon::parse($this->shiftStore->end_time); // Asumsikan ada kolom end_time di shiftStore
+        $shiftEndTime = Carbon::parse($this->shiftStore->shift_end_time); // Asumsikan ada kolom end_time di shiftStore
 
         // Jika check_out melewati hari, tambahkan satu hari ke shiftEndTime
         if ($checkOutTime->lessThan($shiftEndTime) && $checkOutTime->isNextDay()) {
@@ -130,7 +130,7 @@ class Presence extends Model
             return 0; // Or handle the error as needed
         }
 
-        $salaryRatePerHour = $this->createdBy->employee->salary_rate_per_hour;
+        $salaryRatePerHour = $this->createdBy->employee->getSalaryRatePerHour();
 
         return $effectiveWorkingTime * $salaryRatePerHour;
     }

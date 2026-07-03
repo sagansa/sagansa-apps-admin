@@ -2,167 +2,130 @@
 
 namespace App\Services;
 
-use App\Models\Salary;
+use App\Models\MonthlySalary;
 use App\Models\DailySalary;
 use App\Models\Presence;
-use App\Models\SalaryRate;
+use App\Models\PayrollPeriodSetting;
 use App\Models\User;
+use App\Models\Store;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class SalaryService
 {
-    /**
-     * Hitung dan simpan gaji harian saat presensi
-     */
-    public function calculateDailySalary(Presence $presence)
-    {
-        // Pastikan presence sudah check-out
-        if (!$presence->check_out) {
-            return null;
-        }
-
-        $user = $presence->createdBy;
-        $employee = $user->employees()->first();
-
-        if (!$employee || !$employee->join_date) {
-            throw new \Exception('Data karyawan tidak ditemukan');
-        }
-
-        // Hitung masa kerja
-        $yearsOfService = Carbon::parse($employee->join_date)
-            ->diffInYears(Carbon::parse($presence->check_in));
-
-        // Ambil rate gaji yang berlaku
-        $salaryRate = SalaryRate::where('effective_date', '<=', $presence->check_in)
-            ->latest('effective_date')
-            ->first();
-
-        if (!$salaryRate) {
-            throw new \Exception('Rate gaji tidak ditemukan');
-        }
-
-        // Ambil rate per jam sesuai masa kerja
-        $rateDetail = $salaryRate->salaryRateDetails()
-            ->where('years_of_service', '<=', $yearsOfService)
-            ->orderBy('years_of_service', 'desc')
-            ->first();
-
-        if (!$rateDetail) {
-            throw new \Exception('Detail rate tidak ditemukan');
-        }
-
-        // Hitung jam kerja
-        $checkIn = Carbon::parse($presence->check_in);
-        $checkOut = Carbon::parse($presence->check_out);
-        $workHours = $checkOut->diffInHours($checkIn);
-
-        // Hitung gaji hari ini
-        $dailySalary = $workHours * $rateDetail->rate_per_hour;
-
-        // Simpan atau update gaji harian
-        return DailySalary::updateOrCreate(
-            [
-                'presence_id' => $presence->id,
-                'user_id' => $user->id,
-                'date' => $checkIn->toDateString()
-            ],
-            [
-                'work_hours' => $workHours,
-                'rate_per_hour' => $rateDetail->rate_per_hour,
-                'amount' => $dailySalary,
-                'salary_rate_id' => $salaryRate->id,
-                'years_of_service' => $yearsOfService
-            ]
-        );
-    }
-
     /**
      * Generate atau update gaji bulanan
      */
     public function generateMonthlySalary($userId, $year, $month)
     {
-        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
-        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
-
         $user = User::findOrFail($userId);
-        $employee = $user->employees()->first();
+        
+        // Dapatkan tenant_id dari user, store, atau fallback
+        $tenantId = $user->tenant_id
+            ?? Store::first()?->tenant_id
+            ?? DB::table('tenants')->first()?->id
+            ?? '00000000-0000-0000-0000-000000000000';
 
-        if (!$employee) {
-            throw new \Exception('Data karyawan tidak ditemukan');
+        // Ambil pengaturan periode penggajian tenant
+        $setting = PayrollPeriodSetting::where('tenant_id', $tenantId)->first();
+        if (!$setting) {
+            $setting = PayrollPeriodSetting::create([
+                'tenant_id' => $tenantId,
+                'start_day' => 26,
+                'end_day' => 25,
+                'transport_allowance_per_day' => 25000,
+                'meal_allowance_per_day' => 20000,
+                'late_penalty_per_hour' => 10000,
+                'no_checkout_penalty' => 20000,
+            ]);
         }
 
-        // Ambil semua gaji harian dalam periode
-        $dailySalaries = DailySalary::where('user_id', $userId)
-            ->whereBetween('date', [$startDate, $endDate])
+        $startDay = $setting->start_day;
+
+        // Hitung rentang tanggal dinamis
+        if ($startDay == 1) {
+            $periodStart = Carbon::create($year, $month, 1)->startOfMonth();
+            $periodEnd = Carbon::create($year, $month, 1)->endOfMonth();
+        } else {
+            $prevMonth = Carbon::create($year, $month, 1)->subMonth();
+            $startDayClamped = min($startDay, $prevMonth->daysInMonth);
+            $periodStart = $prevMonth->day($startDayClamped)->startOfDay();
+
+            $currentMonth = Carbon::create($year, $month, 1);
+            $endDayClamped = min($startDay - 1, $currentMonth->daysInMonth);
+            $periodEnd = $currentMonth->day($endDayClamped)->endOfDay();
+        }
+
+        // Ambil semua presensi valid ('2') karyawan dalam rentang tanggal
+        $presences = Presence::where('created_by_id', $userId)
+            ->whereBetween('check_in', [$periodStart, $periodEnd])
+            ->where('status', '2') // 2 = valid
+            ->with(['shiftStore', 'store'])
             ->get();
 
-        $totalWorkHours = $dailySalaries->sum('work_hours');
-        $totalAmount = $dailySalaries->sum('amount');
+        $totalWorkDays = $presences->count();
+        $totalEffectiveHours = 0;
+        $totalBaseSalary = 0;
+        $totalPenaltyAmount = 0;
 
-        // Hitung tunjangan dan potongan
+        foreach ($presences as $presence) {
+            // 1. Total jam efektif kerja
+            $effectiveHours = $presence->calculateEffectiveWorkingTime();
+            $totalEffectiveHours += $effectiveHours;
+
+            // 2. Gaji kotor harian (dari tabel daily_salaries atau default toko)
+            $dailySalary = DailySalary::where('presence_id', $presence->id)->first();
+            $baseSalaryAmount = $dailySalary ? $dailySalary->amount : ($presence->store?->daily_salary_amount ?? 50000);
+            $totalBaseSalary += $baseSalaryAmount;
+
+            // 3. Potongan denda harian
+            if (is_null($presence->check_out)) {
+                // Denda flat jika tidak check-out
+                $totalPenaltyAmount += $setting->no_checkout_penalty;
+            } else {
+                // Denda jam terlambat check-in + cepat pulang
+                $penaltyHours = $presence->calculateTotalPenalty();
+                $totalPenaltyAmount += $penaltyHours * $setting->late_penalty_per_hour;
+            }
+        }
+
+        // Hitung tunjangan (dinamis dari pengaturan)
+        $transportAllowance = $totalWorkDays * $setting->transport_allowance_per_day;
+        $mealAllowance = $totalWorkDays * $setting->meal_allowance_per_day;
+
         $allowances = [
-            'transport' => $this->calculateTransportAllowance($dailySalaries->count()),
-            'meal' => $this->calculateMealAllowance($dailySalaries->count())
+            'transport' => $transportAllowance,
+            'meal' => $mealAllowance
         ];
 
         $deductions = [
-            'late_penalties' => $this->calculateLatePenalties($userId, $startDate, $endDate),
-            'tax' => $this->calculateTax($totalAmount)
+            'late_penalties' => $totalPenaltyAmount
         ];
 
-        // Total gaji setelah tunjangan dan potongan
-        $finalSalary = $totalAmount +
-            array_sum($allowances) -
-            array_sum($deductions);
+        $finalSalary = $totalBaseSalary + $transportAllowance + $mealAllowance - $totalPenaltyAmount;
 
-        // Simpan atau update gaji bulanan
-        return Salary::updateOrCreate(
+        // Simpan atau update rekapitulasi gaji bulanan
+        $monthlySalary = MonthlySalary::updateOrCreate(
             [
                 'user_id' => $userId,
-                'period_start' => $startDate,
-                'period_end' => $endDate
+                'period_start' => $periodStart->toDateString(),
+                'period_end' => $periodEnd->toDateString(),
             ],
             [
-                'years_of_service' => $dailySalaries->last()->years_of_service ?? 0,
-                'total_work_days' => $dailySalaries->count(),
-                'total_hours' => $totalWorkHours,
-                'base_salary' => $totalAmount,
+                'tenant_id' => $tenantId,
+                'total_work_days' => $totalWorkDays,
+                'total_hours' => $totalEffectiveHours,
+                'base_salary' => $totalBaseSalary,
                 'allowances' => $allowances,
                 'deductions' => $deductions,
                 'total_salary' => $finalSalary,
-                'status' => Salary::STATUS_DRAFT
+                'status' => MonthlySalary::STATUS_DRAFT
             ]
         );
-    }
 
-    /**
-     * Helper methods untuk menghitung tunjangan dan potongan
-     */
-    private function calculateTransportAllowance($workDays)
-    {
-        return $workDays * 25000; // Rp 25.000 per hari
-    }
+        // Sinkronisasi data presensi yang masuk dalam slip gaji ini ke pivot table
+        $monthlySalary->presences()->sync($presences->pluck('id')->toArray());
 
-    private function calculateMealAllowance($workDays)
-    {
-        return $workDays * 20000; // Rp 20.000 per hari
-    }
-
-    private function calculateLatePenalties($userId, $startDate, $endDate)
-    {
-        return Presence::where('created_by_id', $userId)
-            ->whereBetween('check_in', [$startDate, $endDate])
-            ->where('check_in_status', 'terlambat')
-            ->get()
-            ->sum(function ($presence) {
-                // Misal: denda Rp 10.000 per keterlambatan
-                return 10000;
-            });
-    }
-
-    private function calculateTax($amount)
-    {
-        // Implementasi perhitungan pajak
-        return 0; // Sementara return 0
+        return $monthlySalary;
     }
 }
