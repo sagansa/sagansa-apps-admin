@@ -240,11 +240,11 @@ class RecruitmentApplicantResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
-                    Tables\Actions\EditAction::make(),
+                \Filament\Actions\ActionGroup::make([
+                    \Filament\Actions\ViewAction::make(),
+                    \Filament\Actions\EditAction::make(),
 
-                    \Filament\Tables\Actions\Action::make('approve')
+                    \Filament\Actions\Action::make('approve')
                         ->label('Terima Pelamar')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
@@ -266,7 +266,7 @@ class RecruitmentApplicantResource extends Resource
                                 ->send();
                         }),
 
-                    \Filament\Tables\Actions\Action::make('reject')
+                    \Filament\Actions\Action::make('reject')
                         ->label('Tolak Pelamar')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
@@ -280,7 +280,7 @@ class RecruitmentApplicantResource extends Resource
                                 ->send();
                         }),
 
-                    \Filament\Tables\Actions\Action::make('revertToDraft')
+                    \Filament\Actions\Action::make('revertToDraft')
                         ->label('Kembalikan ke Draft')
                         ->icon('heroicon-o-arrow-uturn-left')
                         ->color('warning')
