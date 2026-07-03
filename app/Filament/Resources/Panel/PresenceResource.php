@@ -193,6 +193,14 @@ class PresenceResource extends Resource
                     ->label('Created By')
                     ->searchable()
                     ->relationship('createdBy', 'name'),
+
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options([
+                        '1' => 'belum diperiksa',
+                        '2' => 'valid',
+                        '3' => 'tidak valid',
+                    ]),
             ])
             ->actions([
                 ActionGroup::make([
@@ -207,7 +215,9 @@ class PresenceResource extends Resource
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
                         ->requiresConfirmation()
-                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => $records->each->update(['status' => '2'])),
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
+                            \App\Models\Presence::whereIn('id', $records->pluck('id'))->update(['status' => 2]);
+                        }),
                     \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ])
