@@ -11,7 +11,8 @@ class ApplicantDetail extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'join_date' => 'date'
+        'join_date' => 'date',
+        'admin_fee' => 'decimal:2',
     ];
 
     public function user()

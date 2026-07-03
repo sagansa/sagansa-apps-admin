@@ -123,6 +123,26 @@ class RecruitmentApplicantResource extends Resource
                             ->label('Tanggal Bergabung')
                             ->nullable(),
                     ])->columns(2),
+
+                Section::make('Informasi Rekening Bank & Biaya Admin')
+                    ->visible(fn ($record) => $record && $record->join_date !== null)
+                    ->schema([
+                        TextInput::make('bank_account_name')
+                            ->label('Nama Pemegang Rekening')
+                            ->placeholder('Belum diisi oleh pelamar'),
+                        TextInput::make('bank_account_number')
+                            ->label('Nomor Rekening')
+                            ->placeholder('Belum diisi oleh pelamar'),
+                        TextInput::make('bank_name')
+                            ->label('Nama Bank')
+                            ->placeholder('Belum diisi oleh pelamar'),
+                        TextInput::make('admin_fee')
+                            ->label('Biaya Admin (Transfer)')
+                            ->numeric()
+                            ->prefix('Rp')
+                            ->default(0)
+                            ->helperText('Isi dengan 2500 jika transfer ke bank ini dikenakan biaya admin.'),
+                    ])->columns(2),
             ]);
     }
 
@@ -224,6 +244,14 @@ class RecruitmentApplicantResource extends Resource
                     ->label('Join Date')
                     ->date()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('bank_name')
+                    ->label('Bank')
+                    ->placeholder('—')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('admin_fee')
+                    ->label('Biaya Admin')
+                    ->money('idr')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
