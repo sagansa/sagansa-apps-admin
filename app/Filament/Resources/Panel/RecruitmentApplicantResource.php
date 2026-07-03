@@ -152,6 +152,48 @@ class RecruitmentApplicantResource extends Resource
             });
     }
 
+    public static function approveAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('approveApplicant')
+            ->label('Terima Pelamar')
+            ->icon('heroicon-o-check-circle')
+            ->color('success')
+            ->form([
+                DatePicker::make('join_date')
+                    ->label('Tanggal Bergabung')
+                    ->required()
+                    ->default(now()),
+            ])
+            ->visible(fn (ApplicantDetail $record): bool => in_array($record->status, ['submitted', 'reviewed']))
+            ->action(function (ApplicantDetail $record, array $data) {
+                $record->update([
+                    'status' => 'accepted',
+                    'join_date' => $data['join_date'],
+                ]);
+                Notification::make()
+                    ->title('Pelamar berhasil diterima')
+                    ->success()
+                    ->send();
+            });
+    }
+
+    public static function rejectAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('rejectApplicant')
+            ->label('Tolak Pelamar')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->visible(fn (ApplicantDetail $record): bool => in_array($record->status, ['submitted', 'reviewed']))
+            ->action(function (ApplicantDetail $record) {
+                $record->update(['status' => 'rejected']);
+                Notification::make()
+                    ->title('Pelamar telah ditolak')
+                    ->danger()
+                    ->send();
+            });
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -198,9 +240,60 @@ class RecruitmentApplicantResource extends Resource
                     ]),
             ])
             ->actions([
-                \Filament\Actions\ViewAction::make(),
-                \Filament\Actions\EditAction::make(),
-                static::revertToDraftAction(),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\EditAction::make(),
+
+                    \Filament\Tables\Actions\Action::make('approve')
+                        ->label('Terima Pelamar')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->form([
+                            DatePicker::make('join_date')
+                                ->label('Tanggal Bergabung')
+                                ->required()
+                                ->default(now()),
+                        ])
+                        ->visible(fn (ApplicantDetail $record): bool => in_array($record->status, ['submitted', 'reviewed']))
+                        ->action(function (ApplicantDetail $record, array $data) {
+                            $record->update([
+                                'status' => 'accepted',
+                                'join_date' => $data['join_date'],
+                            ]);
+                            Notification::make()
+                                ->title('Pelamar berhasil diterima')
+                                ->success()
+                                ->send();
+                        }),
+
+                    \Filament\Tables\Actions\Action::make('reject')
+                        ->label('Tolak Pelamar')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->visible(fn (ApplicantDetail $record): bool => in_array($record->status, ['submitted', 'reviewed']))
+                        ->action(function (ApplicantDetail $record) {
+                            $record->update(['status' => 'rejected']);
+                            Notification::make()
+                                ->title('Pelamar telah ditolak')
+                                ->danger()
+                                ->send();
+                        }),
+
+                    \Filament\Tables\Actions\Action::make('revertToDraft')
+                        ->label('Kembalikan ke Draft')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->visible(fn (ApplicantDetail $record): bool => $record->status !== 'draft')
+                        ->action(function (ApplicantDetail $record) {
+                            $record->update(['status' => 'draft']);
+                            Notification::make()
+                                ->title('Status dikembalikan ke Draft')
+                                ->success()
+                                ->send();
+                        }),
+                ])
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

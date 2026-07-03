@@ -97,11 +97,52 @@ class SalaryService
             'meal' => 0
         ];
 
+        // Reset kaitan data pinalti dan kasbon jika rekap gaji ini pernah dibuat sebelumnya
+        $existingMonthlySalary = MonthlySalary::where('user_id', $userId)
+            ->where('period_start', $periodStart->toDateString())
+            ->where('period_end', $periodEnd->toDateString())
+            ->first();
+        $existingMonthlySalaryId = $existingMonthlySalary ? $existingMonthlySalary->id : null;
+
+        if ($existingMonthlySalaryId) {
+            \App\Models\SalaryPenalty::where('monthly_salary_id', $existingMonthlySalaryId)
+                ->update(['monthly_salary_id' => null]);
+
+            $associatedInstallments = \App\Models\LoanInstallment::where('monthly_salary_id', $existingMonthlySalaryId)->get();
+            foreach ($associatedInstallments as $inst) {
+                $inst->update([
+                    'monthly_salary_id' => null,
+                    'status' => 1 // pending
+                ]);
+                $inst->employeeLoan->update(['status' => 1]); // active
+            }
+        }
+
+        // Ambil pinalti manual dalam periode gaji berjalan yang belum dipotong
+        $manualPenalties = \App\Models\SalaryPenalty::where('user_id', $userId)
+            ->whereNull('monthly_salary_id')
+            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->get();
+        $manualPenaltyTotal = $manualPenalties->sum('amount');
+
+        // Ambil cicilan kasbon yang jatuh tempo pada periode berjalan dan berstatus pending
+        $loanInstallments = \App\Models\LoanInstallment::whereHas('employeeLoan', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->where('status', 1) // pending
+            ->whereNull('monthly_salary_id')
+            ->whereBetween('due_date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->get();
+        $loanInstallmentTotal = $loanInstallments->sum('amount');
+
         $deductions = [
-            'late_penalties' => $totalPenaltyAmount
+            'late_penalties' => $totalPenaltyAmount,
+            'manual_penalties' => $manualPenaltyTotal,
+            'loan_installments' => $loanInstallmentTotal,
         ];
 
-        $finalSalary = $totalBaseSalary - $totalPenaltyAmount;
+        $finalSalary = $totalBaseSalary - $totalPenaltyAmount - $manualPenaltyTotal - $loanInstallmentTotal;
+        $finalSalary = max(0, $finalSalary);
 
         // Simpan atau update rekapitulasi gaji bulanan
         $monthlySalary = MonthlySalary::updateOrCreate(
@@ -122,6 +163,26 @@ class SalaryService
                 'status' => MonthlySalary::STATUS_DRAFT
             ]
         );
+
+        // Kaitkan denda manual ke slip gaji ini
+        foreach ($manualPenalties as $penalty) {
+            $penalty->update(['monthly_salary_id' => $monthlySalary->id]);
+        }
+
+        // Kaitkan dan tandai lunas cicilan kasbon bulan ini
+        foreach ($loanInstallments as $installment) {
+            $installment->update([
+                'monthly_salary_id' => $monthlySalary->id,
+                'status' => 2 // paid
+            ]);
+
+            // Cek jika seluruh cicilan untuk kasbon ini sudah lunas
+            $loan = $installment->employeeLoan;
+            $unpaidCount = $loan->installments()->where('status', '!=', 2)->count();
+            if ($unpaidCount === 0) {
+                $loan->update(['status' => 2]); // paid
+            }
+        }
 
         // Sinkronisasi data presensi yang masuk dalam slip gaji ini ke pivot table
         $monthlySalary->presences()->sync($presences->pluck('id')->toArray());

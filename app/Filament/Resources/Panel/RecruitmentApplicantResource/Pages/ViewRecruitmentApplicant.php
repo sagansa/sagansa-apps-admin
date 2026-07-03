@@ -13,6 +13,8 @@ class ViewRecruitmentApplicant extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            RecruitmentApplicantResource::approveAction(),
+            RecruitmentApplicantResource::rejectAction(),
             RecruitmentApplicantResource::revertToDraftAction(),
         ];
     }
