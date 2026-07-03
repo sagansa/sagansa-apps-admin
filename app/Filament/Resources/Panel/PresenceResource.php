@@ -202,7 +202,7 @@ class PresenceResource extends Resource
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('approveSelected')
+                    \Filament\Actions\BulkAction::make('approveSelected')
                         ->label('Setujui Presensi Terpilih')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
