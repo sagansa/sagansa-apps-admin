@@ -8,6 +8,8 @@ use App\Models\Presence;
 use App\Models\PayrollPeriodSetting;
 use App\Models\User;
 use App\Models\Store;
+use App\Models\SalaryRate;
+use App\Models\SalaryRateDetail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -63,9 +65,37 @@ class SalaryService
             ->with(['shiftStore', 'store'])
             ->get();
 
+        // Dapatkan data employee dan hitung rate per jam berdasarkan masa kerja s.d. akhir periode gaji
+        $employee = $user->employees()->first() ?? $user->employee;
+        $ratePerHour = 0;
+
+        if ($employee && $employee->join_date) {
+            $yearsOfService = $employee->calculateYearsOfService($periodEnd);
+
+            // Ambil salary rate teraktif untuk tahun tersebut
+            $salaryRate = SalaryRate::whereYear('effective_date', $periodEnd->year)
+                ->orderBy('effective_date', 'desc')
+                ->first()
+                ?? SalaryRate::orderBy('effective_date', 'desc')->first();
+
+            if ($salaryRate) {
+                $salaryRateDetail = SalaryRateDetail::where('salary_rate_id', $salaryRate->id)
+                    ->where('years_of_service', '<=', $yearsOfService)
+                    ->orderBy('years_of_service', 'desc')
+                    ->first();
+                
+                $ratePerHour = $salaryRateDetail ? (float) $salaryRateDetail->rate_per_hour : 0.0;
+            }
+        }
+
+        // Jika tidak ada data rate per jam dari tabel tenur, gunakan default rate per jam dari store / 8 jam
+        if ($ratePerHour == 0) {
+            $defaultStoreRate = Store::first()?->daily_salary_amount ?? 50000;
+            $ratePerHour = round($defaultStoreRate / 8, 2);
+        }
+
         $totalWorkDays = $presences->count();
         $totalEffectiveHours = 0;
-        $totalBaseSalary = 0;
         $totalPenaltyAmount = 0;
 
         foreach ($presences as $presence) {
@@ -73,12 +103,7 @@ class SalaryService
             $effectiveHours = $presence->calculateEffectiveWorkingTime();
             $totalEffectiveHours += $effectiveHours;
 
-            // 2. Gaji kotor harian (dari tabel daily_salaries atau default toko)
-            $dailySalary = DailySalary::where('presence_id', $presence->id)->first();
-            $baseSalaryAmount = $dailySalary ? $dailySalary->amount : ($presence->store?->daily_salary_amount ?? 50000);
-            $totalBaseSalary += $baseSalaryAmount;
-
-            // 3. Potongan denda harian
+            // 2. Potongan denda harian
             if (is_null($presence->check_out)) {
                 // Denda flat jika tidak check-out
                 $totalPenaltyAmount += $setting->no_checkout_penalty;
@@ -89,20 +114,20 @@ class SalaryService
             }
         }
 
-        // Hitung tunjangan (dinamis dari pengaturan)
-        $transportAllowance = $totalWorkDays * $setting->transport_allowance_per_day;
-        $mealAllowance = $totalWorkDays * $setting->meal_allowance_per_day;
+        // Base salary dihitung dari: rate per jam x total jam efektif kerja
+        $totalBaseSalary = $ratePerHour * $totalEffectiveHours;
 
+        // Transport & meals tidak digunakan dalam rekap bulanan
         $allowances = [
-            'transport' => $transportAllowance,
-            'meal' => $mealAllowance
+            'transport' => 0,
+            'meal' => 0
         ];
 
         $deductions = [
             'late_penalties' => $totalPenaltyAmount
         ];
 
-        $finalSalary = $totalBaseSalary + $transportAllowance + $mealAllowance - $totalPenaltyAmount;
+        $finalSalary = $totalBaseSalary - $totalPenaltyAmount;
 
         // Simpan atau update rekapitulasi gaji bulanan
         $monthlySalary = MonthlySalary::updateOrCreate(
