@@ -69,7 +69,7 @@ class PayrollSettings extends Page implements HasForms
     {
         return Auth::user()->tenant_id
             ?? Store::first()?->tenant_id
-            ?? DB::table('tenants')->first()?->id
+            ?? DB::connection('mysql_auth')->table('tenants')->first()?->id
             ?? '00000000-0000-0000-0000-000000000000';
     }
 
