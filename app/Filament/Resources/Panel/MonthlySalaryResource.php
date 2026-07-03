@@ -237,6 +237,27 @@ class MonthlySalaryResource extends Resource
                             'payment_date' => now()->toDateString(),
                         ])
                         ->form(fn (MonthlySalary $record) => [
+                            Placeholder::make('bank_account_info')
+                                ->label('Rekening Bank Penerima')
+                                ->content(function () use ($record) {
+                                    $detail = $record->user?->applicantDetail;
+                                    if ($detail) {
+                                        return new \Illuminate\Support\HtmlString("
+                                            <div class='text-sm space-y-1 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
+                                                <div><strong>Bank:</strong> " . e($detail->bank_name ?? '—') . "</div>
+                                                <div><strong>No. Rekening:</strong> " . e($detail->bank_account_number ?? '—') . "</div>
+                                                <div><strong>Atas Nama:</strong> " . e($detail->bank_account_name ?? '—') . "</div>
+                                                <div class='text-danger-600 font-medium'><strong>Biaya Admin Transfer:</strong> Rp " . number_format($detail->admin_fee ?? 0, 0, ',', '.') . "</div>
+                                            </div>
+                                        ");
+                                    }
+                                    return new \Illuminate\Support\HtmlString("
+                                        <div class='text-sm text-gray-500 italic bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
+                                            Data rekening bank tidak ditemukan.
+                                        </div>
+                                    ");
+                                }),
+
                             Placeholder::make('total_salary_info')
                                 ->label('Gaji Bersih Kalkulasi')
                                 ->content('Rp ' . number_format((float) $record->total_salary, 0, ',', '.')),
