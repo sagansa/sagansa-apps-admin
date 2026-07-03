@@ -36,6 +36,14 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $fillable = ['name', 'email', 'password'];
 
+    public function __construct(array $attributes = [])
+    {
+        parent::__construct($attributes);
+
+        $database = config('database.connections.mysql_auth.database');
+        $this->table = $database ? $database . '.users' : 'users';
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *
