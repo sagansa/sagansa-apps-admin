@@ -12,7 +12,9 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Placeholder;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Notifications\Notification;
 use App\Filament\Resources\Panel\MonthlySalaryResource\Pages;
 
 use App\Filament\Resources\Panel\MonthlySalaryResource\RelationManagers\PresencesRelationManager;
@@ -59,9 +61,9 @@ class MonthlySalaryResource extends Resource
                     Select::make('status')
                         ->label('Status Slip Gaji')
                         ->options([
-                            MonthlySalary::STATUS_DRAFT => 'Draft',
+                            MonthlySalary::STATUS_DRAFT    => 'Draft',
                             MonthlySalary::STATUS_APPROVED => 'Approved',
-                            MonthlySalary::STATUS_PAID => 'Paid',
+                            MonthlySalary::STATUS_PAID     => 'Paid',
                         ])
                         ->required(),
 
@@ -160,6 +162,31 @@ class MonthlySalaryResource extends Resource
                     ->money('idr')
                     ->sortable(),
 
+                TextColumn::make('paid_amount')
+                    ->label('Dibayarkan')
+                    ->money('idr')
+                    ->default('—')
+                    ->sortable(),
+
+                TextColumn::make('selisih')
+                    ->label('Selisih')
+                    ->getStateUsing(fn (MonthlySalary $record): string =>
+                        $record->paid_amount !== null
+                            ? 'Rp ' . number_format(abs($record->selisih), 0, ',', '.')
+                              . ($record->selisih > 0 ? ' (Kurang)' : ($record->selisih < 0 ? ' (Lebih)' : ''))
+                            : '—'
+                    )
+                    ->color(fn (MonthlySalary $record): string =>
+                        $record->paid_amount === null ? 'gray'
+                            : ($record->selisih > 0 ? 'danger' : ($record->selisih < 0 ? 'warning' : 'success'))
+                    )
+                    ->badge(),
+
+                TextColumn::make('payment_date')
+                    ->label('Tgl Bayar')
+                    ->date()
+                    ->sortable(),
+
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -178,11 +205,98 @@ class MonthlySalaryResource extends Resource
             ])
             ->filters([])
             ->actions([
-                \Filament\Actions\EditAction::make(),
-                \Filament\Actions\ViewAction::make(),
+                \Filament\Actions\ActionGroup::make([
+                    \Filament\Actions\ViewAction::make(),
+                    \Filament\Actions\EditAction::make(),
+
+                    // ── Approve ──────────────────────────────────────────────
+                    \Filament\Actions\Action::make('approve')
+                        ->label('Approve')
+                        ->icon('heroicon-o-check-badge')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Approve Slip Gaji')
+                        ->modalDescription('Status slip gaji akan diubah menjadi Approved.')
+                        ->visible(fn (MonthlySalary $record) => $record->status === MonthlySalary::STATUS_DRAFT)
+                        ->action(function (MonthlySalary $record) {
+                            $record->update(['status' => MonthlySalary::STATUS_APPROVED]);
+                            Notification::make()
+                                ->title('Slip gaji berhasil di-approve.')
+                                ->success()
+                                ->send();
+                        }),
+
+                    // ── Bayar Gaji ───────────────────────────────────────────
+                    \Filament\Actions\Action::make('bayar')
+                        ->label('Bayar Gaji')
+                        ->icon('heroicon-o-banknotes')
+                        ->color('success')
+                        ->visible(fn (MonthlySalary $record) => $record->status !== MonthlySalary::STATUS_PAID)
+                        ->fillForm(fn (MonthlySalary $record) => [
+                            'paid_amount'  => $record->total_salary,
+                            'payment_date' => now()->toDateString(),
+                        ])
+                        ->form(fn (MonthlySalary $record) => [
+                            Placeholder::make('total_salary_info')
+                                ->label('Gaji Bersih Kalkulasi')
+                                ->content('Rp ' . number_format((float) $record->total_salary, 0, ',', '.')),
+
+                            TextInput::make('paid_amount')
+                                ->label('Nominal Dibayarkan (Rp)')
+                                ->numeric()
+                                ->required()
+                                ->prefix('Rp')
+                                ->live()
+                                ->helperText(function ($state) use ($record): string {
+                                    if ($state === null || $state === '') return '';
+                                    $selisih = (float) $record->total_salary - (float) $state;
+                                    if ($selisih > 0) return '⚠ Kurang bayar: Rp ' . number_format($selisih, 0, ',', '.');
+                                    if ($selisih < 0) return '⚠ Lebih bayar: Rp ' . number_format(abs($selisih), 0, ',', '.');
+                                    return '✓ Sesuai kalkulasi.';
+                                }),
+
+                            DatePicker::make('payment_date')
+                                ->label('Tanggal Pembayaran')
+                                ->required()
+                                ->default(now()),
+                        ])
+                        ->action(function (MonthlySalary $record, array $data) {
+                            $record->update([
+                                'paid_amount'  => $data['paid_amount'],
+                                'payment_date' => $data['payment_date'],
+                                'status'       => MonthlySalary::STATUS_PAID,
+                            ]);
+                            Notification::make()
+                                ->title('Gaji berhasil dibayarkan. Status diubah ke Paid.')
+                                ->success()
+                                ->send();
+                        }),
+                ]),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
+                    // ── Bulk Approve ─────────────────────────────────────────
+                    \Filament\Tables\Actions\BulkAction::make('bulk_approve')
+                        ->label('Set Approved')
+                        ->icon('heroicon-o-check-badge')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Approve Slip Gaji Terpilih')
+                        ->modalDescription('Status semua slip terpilih yang masih Draft akan diubah menjadi Approved.')
+                        ->action(function (\Illuminate\Support\Collection $records) {
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ($record->status === MonthlySalary::STATUS_DRAFT) {
+                                    $record->update(['status' => MonthlySalary::STATUS_APPROVED]);
+                                    $count++;
+                                }
+                            }
+                            Notification::make()
+                                ->title("{$count} slip gaji berhasil di-approve.")
+                                ->success()
+                                ->send();
+                        }),
+
                     \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ])
@@ -200,10 +314,10 @@ class MonthlySalaryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListMonthlySalaries::route('/'),
+            'index'  => Pages\ListMonthlySalaries::route('/'),
             'create' => Pages\CreateMonthlySalary::route('/create'),
-            'view' => Pages\ViewMonthlySalary::route('/{record}'),
-            'edit' => Pages\EditMonthlySalary::route('/{record}/edit'),
+            'view'   => Pages\ViewMonthlySalary::route('/{record}'),
+            'edit'   => Pages\EditMonthlySalary::route('/{record}/edit'),
         ];
     }
 }

@@ -24,6 +24,7 @@ class MonthlySalary extends Model
         'allowances' => 'array',
         'deductions' => 'array',
         'total_salary' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
         'status' => 'integer',
         'payment_date' => 'datetime',
     ];
@@ -50,5 +51,17 @@ class MonthlySalary extends Model
     public function dailySalaries()
     {
         return $this->hasMany(DailySalary::class, 'monthly_salary_id');
+    }
+
+    /**
+     * Selisih antara gaji kalkulasi dan nominal yang dibayarkan.
+     * Positif = kurang bayar, Negatif = lebih bayar.
+     */
+    public function getSelisihAttribute(): float
+    {
+        if ($this->paid_amount === null) {
+            return 0;
+        }
+        return (float) $this->total_salary - (float) $this->paid_amount;
     }
 }
