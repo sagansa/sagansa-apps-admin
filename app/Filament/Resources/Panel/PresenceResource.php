@@ -202,6 +202,12 @@ class PresenceResource extends Resource
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('approveSelected')
+                        ->label('Setujui Presensi Terpilih')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => $records->each->update(['status' => '2'])),
                     \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ])
