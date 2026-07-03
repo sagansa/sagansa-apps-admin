@@ -96,42 +96,6 @@ class PayrollSettings extends Page implements HasForms
                                 ->required(),
                         ]),
                     ]),
-
-                Section::make('Komponen Tunjangan (Dinamis)')
-                    ->description('Atur nominal tunjangan harian karyawan.')
-                    ->schema([
-                        Grid::make(2)->schema([
-                            TextInput::make('transport_allowance_per_day')
-                                ->label('Tunjangan Transportasi (Per Hari)')
-                                ->numeric()
-                                ->prefix('Rp')
-                                ->required(),
-
-                            TextInput::make('meal_allowance_per_day')
-                                ->label('Tunjangan Makan (Per Hari)')
-                                ->numeric()
-                                ->prefix('Rp')
-                                ->required(),
-                        ]),
-                    ]),
-
-                Section::make('Komponen Denda & Potongan (Dinamis)')
-                    ->description('Atur nominal potongan keterlambatan dan kelalaian presensi.')
-                    ->schema([
-                        Grid::make(2)->schema([
-                            TextInput::make('late_penalty_per_hour')
-                                ->label('Denda Terlambat (Per Jam)')
-                                ->numeric()
-                                ->prefix('Rp')
-                                ->required(),
-
-                            TextInput::make('no_checkout_penalty')
-                                ->label('Denda Tidak Check-out (Flat)')
-                                ->numeric()
-                                ->prefix('Rp')
-                                ->required(),
-                        ]),
-                    ]),
             ])
             ->statePath('data');
     }

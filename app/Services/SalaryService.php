@@ -136,9 +136,13 @@ class SalaryService
         $loanInstallmentTotal = $loanInstallments->sum('amount');
 
         // Ambil gaji harian dalam periode gaji berjalan
-        $dailySalaries = \App\Models\DailySalary::where('created_by_id', $userId)
-            ->whereNull('monthly_salary_id')
+        // Mencakup: (1) input langsung oleh karyawan, (2) input oleh admin/operator tapi terhubung ke presensi karyawan
+        $dailySalaries = \App\Models\DailySalary::whereNull('monthly_salary_id')
             ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->where(function ($q) use ($userId) {
+                $q->where('created_by_id', $userId)
+                  ->orWhereHas('presence', fn ($pq) => $pq->where('created_by_id', $userId));
+            })
             ->get();
         $dailySalaryTotal = $dailySalaries->sum('amount');
 

@@ -24,6 +24,11 @@ class DailySalary extends Model
         return $this->belongsTo(ShiftStore::class);
     }
 
+    public function presence()
+    {
+        return $this->belongsTo(Presence::class);
+    }
+
     public function paymentType()
     {
         return $this->belongsTo(PaymentType::class);
