@@ -17,6 +17,8 @@ use Filament\Forms\Components\KeyValue;
 use Filament\Tables\Columns\TextColumn;
 use App\Filament\Resources\Panel\MonthlySalaryResource\Pages;
 
+use App\Filament\Resources\Panel\MonthlySalaryResource\RelationManagers\PresencesRelationManager;
+
 class MonthlySalaryResource extends Resource
 {
     protected static ?string $model = MonthlySalary::class;
@@ -162,7 +164,9 @@ class MonthlySalaryResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            PresencesRelationManager::class
+        ];
     }
 
     public static function getPages(): array
