@@ -233,7 +233,7 @@ class MonthlySalaryResource extends Resource
                         ->color('success')
                         ->visible(fn (MonthlySalary $record) => $record->status !== MonthlySalary::STATUS_PAID)
                         ->fillForm(fn (MonthlySalary $record) => [
-                            'paid_amount'  => $record->total_salary,
+                            'paid_amount'  => (float) $record->total_salary - (float) ($record->daily_salary_total ?? 0),
                             'payment_date' => now()->toDateString(),
                         ])
                         ->form(fn (MonthlySalary $record) => [
@@ -258,9 +258,19 @@ class MonthlySalaryResource extends Resource
                                     ");
                                 }),
 
-                            Placeholder::make('total_salary_info')
-                                ->label('Gaji Bersih Kalkulasi')
-                                ->content('Rp ' . number_format((float) $record->total_salary, 0, ',', '.')),
+                            Placeholder::make('salary_breakdown_info')
+                                ->label('Rincian Gaji Bersih')
+                                ->content(function () use ($record) {
+                                    $monthlyPart = (float) $record->total_salary - (float) ($record->daily_salary_total ?? 0);
+                                    return new \Illuminate\Support\HtmlString("
+                                        <div class='text-sm space-y-1 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
+                                            <div><strong>Gaji Bulanan Bersih (A - Potongan):</strong> Rp " . number_format($monthlyPart, 0, ',', '.') . "</div>
+                                            <div><strong>Gaji Harian Total (B - Terbayar Terpisah):</strong> Rp " . number_format((float) ($record->daily_salary_total ?? 0), 0, ',', '.') . "</div>
+                                            <hr class='border-gray-200 dark:border-gray-700 my-1' />
+                                            <div class='text-primary-600 font-bold'><strong>Gaji Total Bulanan (A - Potongan + B):</strong> Rp " . number_format((float) $record->total_salary, 0, ',', '.') . "</div>
+                                        </div>
+                                    ");
+                                }),
 
                             TextInput::make('paid_amount')
                                 ->label('Nominal Dibayarkan (Rp)')
@@ -270,10 +280,11 @@ class MonthlySalaryResource extends Resource
                                 ->live()
                                 ->helperText(function ($state) use ($record): string {
                                     if ($state === null || $state === '') return '';
-                                    $selisih = (float) $record->total_salary - (float) $state;
+                                    $monthlyPart = (float) $record->total_salary - (float) ($record->daily_salary_total ?? 0);
+                                    $selisih = $monthlyPart - (float) $state;
                                     if ($selisih > 0) return '⚠ Kurang bayar: Rp ' . number_format($selisih, 0, ',', '.');
                                     if ($selisih < 0) return '⚠ Lebih bayar: Rp ' . number_format(abs($selisih), 0, ',', '.');
-                                    return '✓ Sesuai kalkulasi.';
+                                    return '✓ Sesuai kalkulasi Gaji Bulanan Bersih.';
                                 }),
 
                             DatePicker::make('payment_date')
