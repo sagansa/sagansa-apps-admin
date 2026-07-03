@@ -3,12 +3,10 @@
 namespace App\Filament\Resources\Panel;
 
 use App\Filament\Clusters\HRD;
-use App\Filament\Forms\CurrencyInput;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use App\Models\MonthlySalary;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -18,6 +16,7 @@ use Filament\Tables\Columns\TextColumn;
 use App\Filament\Resources\Panel\MonthlySalaryResource\Pages;
 
 use App\Filament\Resources\Panel\MonthlySalaryResource\RelationManagers\PresencesRelationManager;
+use App\Filament\Resources\Panel\MonthlySalaryResource\RelationManagers\DailySalariesRelationManager;
 
 class MonthlySalaryResource extends Resource
 {
@@ -49,13 +48,16 @@ class MonthlySalaryResource extends Resource
     public static function form(Schema $form): Schema
     {
         return $form->schema([
-            Section::make('Rincian Gaji Bulanan')->schema([
-                Grid::make(['default' => 2])->schema([
+            Section::make('Informasi Karyawan & Periode')
+                ->columns(2)
+                ->schema([
                     Select::make('user_id')
                         ->relationship('user', 'name')
+                        ->label('Karyawan')
                         ->disabled(),
 
                     Select::make('status')
+                        ->label('Status Slip Gaji')
                         ->options([
                             MonthlySalary::STATUS_DRAFT => 'Draft',
                             MonthlySalary::STATUS_APPROVED => 'Approved',
@@ -64,34 +66,54 @@ class MonthlySalaryResource extends Resource
                         ->required(),
 
                     DatePicker::make('period_start')
+                        ->label('Tanggal Mulai')
                         ->disabled(),
 
                     DatePicker::make('period_end')
+                        ->label('Tanggal Selesai')
                         ->disabled(),
 
                     TextInput::make('total_work_days')
+                        ->label('Total Hari Kerja')
                         ->disabled()
                         ->numeric(),
 
                     TextInput::make('total_hours')
+                        ->label('Total Jam Kerja')
                         ->disabled()
                         ->numeric(),
+                ]),
 
+            Section::make('Rincian Perhitungan Gaji')
+                ->columns(2)
+                ->schema([
                     TextInput::make('base_salary')
+                        ->label('Gaji Utama Tenur (A)')
                         ->disabled()
+                        ->prefix('Rp')
+                        ->numeric(),
+
+                    TextInput::make('daily_salary_total')
+                        ->label('Total Gaji Harian (B)')
+                        ->disabled()
+                        ->prefix('Rp')
                         ->numeric(),
 
                     TextInput::make('total_salary')
+                        ->label('Gaji Bersih Akhir (A - Potongan + B)')
                         ->disabled()
-                        ->numeric(),
+                        ->prefix('Rp')
+                        ->numeric()
+                        ->columnSpanFull()
+                        ->extraInputAttributes(['style' => 'font-weight: bold; color: #10b981; font-size: 1.1rem;']),
+                ]),
 
-                    KeyValue::make('allowances')
-                        ->disabled(),
-
+            Section::make('Daftar Potongan / Denda')
+                ->schema([
                     KeyValue::make('deductions')
+                        ->label('Daftar Potongan Pengurang')
                         ->disabled(),
                 ]),
-            ]),
         ]);
     }
 
@@ -124,7 +146,12 @@ class MonthlySalaryResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('base_salary')
-                    ->label('Gaji Kotor')
+                    ->label('Gaji Tenur')
+                    ->money('idr')
+                    ->sortable(),
+
+                TextColumn::make('daily_salary_total')
+                    ->label('Gaji Harian')
                     ->money('idr')
                     ->sortable(),
 
@@ -165,7 +192,8 @@ class MonthlySalaryResource extends Resource
     public static function getRelations(): array
     {
         return [
-            PresencesRelationManager::class
+            PresencesRelationManager::class,
+            DailySalariesRelationManager::class,
         ];
     }
 

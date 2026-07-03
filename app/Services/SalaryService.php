@@ -92,12 +92,9 @@ class SalaryService
         $totalBaseSalary = $ratePerHour * $totalEffectiveHours;
 
         // Transport & meals tidak digunakan dalam rekap bulanan
-        $allowances = [
-            'transport' => 0,
-            'meal' => 0
-        ];
+        $allowances = [];
 
-        // Reset kaitan data pinalti dan kasbon jika rekap gaji ini pernah dibuat sebelumnya
+        // Reset kaitan data pinalti, kasbon, dan gaji harian jika rekap gaji ini pernah dibuat sebelumnya
         $existingMonthlySalary = MonthlySalary::where('user_id', $userId)
             ->where('period_start', $periodStart->toDateString())
             ->where('period_end', $periodEnd->toDateString())
@@ -106,6 +103,9 @@ class SalaryService
 
         if ($existingMonthlySalaryId) {
             \App\Models\SalaryPenalty::where('monthly_salary_id', $existingMonthlySalaryId)
+                ->update(['monthly_salary_id' => null]);
+
+            \App\Models\DailySalary::where('monthly_salary_id', $existingMonthlySalaryId)
                 ->update(['monthly_salary_id' => null]);
 
             $associatedInstallments = \App\Models\LoanInstallment::where('monthly_salary_id', $existingMonthlySalaryId)->get();
@@ -135,13 +135,22 @@ class SalaryService
             ->get();
         $loanInstallmentTotal = $loanInstallments->sum('amount');
 
+        // Ambil gaji harian dalam periode gaji berjalan
+        $dailySalaries = \App\Models\DailySalary::where('created_by_id', $userId)
+            ->whereNull('monthly_salary_id')
+            ->whereBetween('date', [$periodStart->toDateString(), $periodEnd->toDateString()])
+            ->get();
+        $dailySalaryTotal = $dailySalaries->sum('amount');
+
         $deductions = [
             'late_penalties' => $totalPenaltyAmount,
             'manual_penalties' => $manualPenaltyTotal,
             'loan_installments' => $loanInstallmentTotal,
         ];
 
-        $finalSalary = $totalBaseSalary - $totalPenaltyAmount - $manualPenaltyTotal - $loanInstallmentTotal;
+        // Gaji Bersih = (Gaji Tenur - Total Potongan) + Gaji Harian
+        $monthlyPart = $totalBaseSalary - $totalPenaltyAmount - $manualPenaltyTotal - $loanInstallmentTotal;
+        $finalSalary = $monthlyPart + $dailySalaryTotal;
         $finalSalary = max(0, $finalSalary);
 
         // Simpan atau update rekapitulasi gaji bulanan
@@ -156,6 +165,7 @@ class SalaryService
                 'total_work_days' => $totalWorkDays,
                 'total_hours' => $totalEffectiveHours,
                 'base_salary' => $totalBaseSalary,
+                'daily_salary_total' => $dailySalaryTotal,
                 'allowances' => $allowances,
                 'deductions' => $deductions,
                 'total_salary' => $finalSalary,
@@ -167,6 +177,11 @@ class SalaryService
         // Kaitkan denda manual ke slip gaji ini
         foreach ($manualPenalties as $penalty) {
             $penalty->update(['monthly_salary_id' => $monthlySalary->id]);
+        }
+
+        // Kaitkan gaji harian ke slip gaji ini
+        foreach ($dailySalaries as $ds) {
+            $ds->update(['monthly_salary_id' => $monthlySalary->id]);
         }
 
         // Kaitkan dan tandai lunas cicilan kasbon bulan ini

@@ -20,6 +20,7 @@ class MonthlySalary extends Model
         'total_work_days' => 'integer',
         'total_hours' => 'decimal:2',
         'base_salary' => 'decimal:2',
+        'daily_salary_total' => 'decimal:2',
         'allowances' => 'array',
         'deductions' => 'array',
         'total_salary' => 'decimal:2',
@@ -44,5 +45,10 @@ class MonthlySalary extends Model
             'monthly_salary_id',
             'presence_id'
         );
+    }
+
+    public function dailySalaries()
+    {
+        return $this->hasMany(DailySalary::class, 'monthly_salary_id');
     }
 }
