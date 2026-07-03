@@ -105,6 +105,24 @@ class RecruitmentApplicantResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ? 'Berpengalaman' : 'Fresh Graduate')
                             ->disabled(),
                     ])->columns(2),
+
+                Section::make('Status Penerimaan & Tanggal Bergabung')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('status')
+                            ->label('Status')
+                            ->options([
+                                'draft' => 'Draft',
+                                'submitted' => 'Submitted',
+                                'reviewed' => 'Reviewed',
+                                'accepted' => 'Accepted',
+                                'rejected' => 'Rejected',
+                            ])
+                            ->required(),
+
+                        DatePicker::make('join_date')
+                            ->label('Tanggal Bergabung')
+                            ->nullable(),
+                    ])->columns(2),
             ]);
     }
 
@@ -160,6 +178,10 @@ class RecruitmentApplicantResource extends Resource
                         'rejected' => 'danger',
                         default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('join_date')
+                    ->label('Join Date')
+                    ->date()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -177,6 +199,7 @@ class RecruitmentApplicantResource extends Resource
             ])
             ->actions([
                 \Filament\Actions\ViewAction::make(),
+                \Filament\Actions\EditAction::make(),
                 static::revertToDraftAction(),
             ])
             ->bulkActions([

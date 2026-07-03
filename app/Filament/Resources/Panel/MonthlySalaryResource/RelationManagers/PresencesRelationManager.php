@@ -45,22 +45,26 @@ class PresencesRelationManager extends RelationManager
                 TextColumn::make('rate_per_hour')
                     ->label('Rate per Jam')
                     ->getStateUsing(function($record) {
-                        $rate = $record->createdBy?->employee?->getSalaryRatePerHour() ?? 0;
-                        if ($rate == 0) {
-                            $defaultStoreRate = $record->store?->daily_salary_amount ?? 50000;
-                            $rate = round($defaultStoreRate / 8, 2);
+                        if (!$record->createdBy) {
+                            return 'Rp 0';
                         }
+                        $rate = app(\App\Services\SalaryService::class)->getHourlyRateForUser(
+                            $record->createdBy, 
+                            \Carbon\Carbon::parse($record->check_in)
+                        );
                         return 'Rp ' . number_format($rate, 0, ',', '.');
                     }),
 
                 TextColumn::make('daily_salary_calculated')
                     ->label('Gaji Harian')
                     ->getStateUsing(function($record) {
-                        $rate = $record->createdBy?->employee?->getSalaryRatePerHour() ?? 0;
-                        if ($rate == 0) {
-                            $defaultStoreRate = $record->store?->daily_salary_amount ?? 50000;
-                            $rate = round($defaultStoreRate / 8, 2);
+                        if (!$record->createdBy) {
+                            return 'Rp 0';
                         }
+                        $rate = app(\App\Services\SalaryService::class)->getHourlyRateForUser(
+                            $record->createdBy, 
+                            \Carbon\Carbon::parse($record->check_in)
+                        );
                         $effectiveTime = $record->calculateEffectiveWorkingTime();
                         return 'Rp ' . number_format($effectiveTime * $rate, 0, ',', '.');
                     }),

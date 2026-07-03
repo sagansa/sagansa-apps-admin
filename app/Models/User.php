@@ -109,24 +109,6 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Get all of the employees.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function employees()
-    {
-        return $this->hasMany(Employee::class);
-    }
-
-    /**
-     * Get all of the contractEmployees.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function contractEmployees()
-    {
-        return $this->hasMany(ContractEmployee::class);
-    }
 
     /**
      * Get all of the closingCouriersCreatedBy.
@@ -622,84 +604,6 @@ class User extends Authenticatable implements FilamentUser
         });
     }
 
-    public function calculateSalary($startDate, $endDate)
-    {
-        // Ambil data employee
-        $employee = $this->employees()->first();
-
-        if (!$employee || !$employee->join_date) {
-            throw new \Exception('Employee data or join date not found');
-        }
-
-        // Hitung masa kerja berdasarkan join_date employee
-        $yearsOfService = Carbon::parse($employee->join_date)->diffInYears(Carbon::now());
-
-        // Ambil rate gaji yang berlaku
-        $salaryRate = SalaryRate::where('effective_date', '<=', $endDate)
-            ->latest('effective_date')
-            ->first();
-
-        if (!$salaryRate) {
-            throw new \Exception('Salary rate not found');
-        }
-
-        // Ambil rate per jam sesuai masa kerja
-        $rateDetail = $salaryRate->salaryRateDetails()
-            ->where('years_of_service', '<=', $yearsOfService)
-            ->orderBy('years_of_service', 'desc')
-            ->first();
-
-        if (!$rateDetail) {
-            throw new \Exception('Rate detail not found');
-        }
-
-        // Hitung total jam kerja dari presensi
-        $totalHours = Presence::where('created_by_id', $this->id)
-            ->whereDate('check_in', '>=', $startDate)
-            ->whereDate('check_in', '<=', $endDate)
-            ->whereNotNull('check_out')
-            ->get()
-            ->sum(function ($presence) {
-                $checkIn = Carbon::parse($presence->check_in);
-                $checkOut = Carbon::parse($presence->check_out);
-                return $checkOut->diffInHours($checkIn);
-            });
-
-        // Hitung total gaji
-        $totalSalary = $totalHours * $rateDetail->rate_per_hour;
-
-        return [
-            'employee' => [
-                'id' => $this->id,
-                'name' => $this->name,
-                'employee_id' => $employee->id,
-                'join_date' => $employee->join_date,
-                'years_of_service' => $yearsOfService,
-                'bank_name' => $employee->bank->name ?? null,
-                'account_number' => $employee->account_number ?? null,
-                'account_name' => $employee->account_name ?? null
-            ],
-            'salary_rate' => [
-                'name' => $salaryRate->name,
-                'effective_date' => $salaryRate->effective_date,
-                'rate_per_hour' => $rateDetail->rate_per_hour
-            ],
-            'calculation' => [
-                'total_hours' => $totalHours,
-                'rate_per_hour' => $rateDetail->rate_per_hour,
-                'total_salary' => $totalSalary
-            ],
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate
-            ]
-        ];
-    }
-
-    public function employee()
-    {
-        return $this->hasOne(Employee::class);
-    }
 
     /**
      * Override notifications to use the mysql connection (sagansa database).

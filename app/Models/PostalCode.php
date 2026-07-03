@@ -45,10 +45,6 @@ class PostalCode extends Model
         return $this->hasMany(DeliveryAddress::class);
     }
 
-    public function employees()
-    {
-        return $this->hasMany(Employee::class);
-    }
 
     public function locations()
     {

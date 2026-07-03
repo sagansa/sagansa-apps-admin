@@ -65,34 +65,8 @@ class SalaryService
             ->with(['shiftStore', 'store'])
             ->get();
 
-        // Dapatkan data employee dan hitung rate per jam berdasarkan masa kerja s.d. akhir periode gaji
-        $employee = $user->employees()->first() ?? $user->employee;
-        $ratePerHour = 0;
-
-        if ($employee && $employee->join_date) {
-            $yearsOfService = $employee->calculateYearsOfService($periodEnd);
-
-            // Ambil salary rate teraktif untuk tahun tersebut
-            $salaryRate = SalaryRate::whereYear('effective_date', $periodEnd->year)
-                ->orderBy('effective_date', 'desc')
-                ->first()
-                ?? SalaryRate::orderBy('effective_date', 'desc')->first();
-
-            if ($salaryRate) {
-                $salaryRateDetail = SalaryRateDetail::where('salary_rate_id', $salaryRate->id)
-                    ->where('years_of_service', '<=', $yearsOfService)
-                    ->orderBy('years_of_service', 'desc')
-                    ->first();
-                
-                $ratePerHour = $salaryRateDetail ? (float) $salaryRateDetail->rate_per_hour : 0.0;
-            }
-        }
-
-        // Jika tidak ada data rate per jam dari tabel tenur, gunakan default rate per jam dari store / 8 jam
-        if ($ratePerHour == 0) {
-            $defaultStoreRate = Store::first()?->daily_salary_amount ?? 50000;
-            $ratePerHour = round($defaultStoreRate / 8, 2);
-        }
+        // Dapatkan data rate per jam berdasarkan masa kerja s.d. akhir periode gaji
+        $ratePerHour = $this->getHourlyRateForUser($user, $periodEnd);
 
         $totalWorkDays = $presences->count();
         $totalEffectiveHours = 0;
@@ -153,5 +127,41 @@ class SalaryService
         $monthlySalary->presences()->sync($presences->pluck('id')->toArray());
 
         return $monthlySalary;
+    }
+
+    /**
+     * Dapatkan tarif per jam untuk user berdasarkan masa kerja (applicantDetail->join_date)
+     */
+    public function getHourlyRateForUser(User $user, Carbon $date): float
+    {
+        // Hubungkan ke applicant_details di database recruitment
+        $applicantDetail = $user->applicantDetail;
+        $joinDate = $applicantDetail ? $applicantDetail->join_date : null;
+
+        if ($joinDate) {
+            // Hitung masa kerja (tahun) dari join_date s.d. tanggal target
+            $yearsOfService = floor(Carbon::parse($joinDate)->diffInYears($date));
+
+            // Ambil skema tarif tahun terkait
+            $salaryRate = SalaryRate::whereYear('effective_date', $date->year)
+                ->orderBy('effective_date', 'desc')
+                ->first()
+                ?? SalaryRate::orderBy('effective_date', 'desc')->first();
+
+            if ($salaryRate) {
+                $salaryRateDetail = SalaryRateDetail::where('salary_rate_id', $salaryRate->id)
+                    ->where('years_of_service', '<=', $yearsOfService)
+                    ->orderBy('years_of_service', 'desc')
+                    ->first();
+
+                if ($salaryRateDetail) {
+                    return (float) $salaryRateDetail->rate_per_hour;
+                }
+            }
+        }
+
+        // Fallback jika tidak ada: default gaji harian store dibagi 8 jam kerja standar
+        $defaultStoreRate = Store::first()?->daily_salary_amount ?? 50000;
+        return (float) round($defaultStoreRate / 8, 2);
     }
 }
