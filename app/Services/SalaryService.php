@@ -119,6 +119,7 @@ class SalaryService
                 'allowances' => $allowances,
                 'deductions' => $deductions,
                 'total_salary' => $finalSalary,
+                'amount' => $finalSalary,
                 'status' => MonthlySalary::STATUS_DRAFT
             ]
         );
