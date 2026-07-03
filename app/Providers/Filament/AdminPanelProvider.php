@@ -59,6 +59,12 @@ class AdminPanelProvider extends PanelProvider
             ->registration()
             ->emailVerification()
             ->maxContentWidth('full')
+            ->userMenuItems([
+                'profile' => MenuItem::make()
+                    ->label('Profil Saya')
+                    ->url(fn (): string => \App\Filament\Pages\MyProfile::getUrl())
+                    ->icon('heroicon-o-user'),
+            ])
             // ->profile()
             ->colors([
                 'primary' => Color::Sky,
