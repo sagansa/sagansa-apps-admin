@@ -54,7 +54,7 @@ class InstallmentsRelationManager extends RelationManager
             ->filters([])
             ->headerActions([])
             ->actions([
-                \Filament\Tables\Actions\Action::make('defer')
+                \Filament\Actions\Action::make('defer')
                     ->label('Tunda Cicilan')
                     ->icon('heroicon-o-clock')
                     ->color('warning')
