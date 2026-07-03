@@ -276,7 +276,7 @@ class MonthlySalaryResource extends Resource
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     // ── Bulk Approve ─────────────────────────────────────────
-                    \Filament\Tables\Actions\BulkAction::make('bulk_approve')
+                    \Filament\Actions\BulkAction::make('bulk_approve')
                         ->label('Set Approved')
                         ->icon('heroicon-o-check-badge')
                         ->color('warning')
