@@ -106,6 +106,22 @@ class InvoicePurchaseResource extends Resource
                     ->searchable()
                     ->relationship('supplier', 'name'),
 
+                SelectFilter::make('created_by_id')
+                    ->label('Pembuat')
+                    ->relationship('createdBy', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->visible(fn () => Auth::user()->hasRole('admin')),
+
+                \Filament\Tables\Filters\TernaryFilter::make('is_empty')
+                    ->label('Status Detail')
+                    ->placeholder('Semua')
+                    ->trueLabel('Invoice Kosong')
+                    ->falseLabel('Ada Detail Item')
+                    ->queries(
+                        true: fn (\Illuminate\Database\Eloquent\Builder $query) => $query->whereDoesntHave('detailInvoices'),
+                        false: fn (\Illuminate\Database\Eloquent\Builder $query) => $query->whereHas('detailInvoices'),
+                    )
             ])
             ->actions([
                 ActionGroup::make([

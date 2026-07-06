@@ -128,7 +128,24 @@ class RequestPurchaseResource extends Resource
                 // StatusColumn::make('status'),
             ])
             ->filters([
-                SelectStoreFilter::make('store_id')
+                SelectStoreFilter::make('store_id'),
+
+                \Filament\Tables\Filters\SelectFilter::make('user_id')
+                    ->label('Pembuat')
+                    ->relationship('user', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->visible(fn () => Auth::user()->hasRole('admin')),
+
+                \Filament\Tables\Filters\TernaryFilter::make('is_empty')
+                    ->label('Status Detail')
+                    ->placeholder('Semua')
+                    ->trueLabel('Invoice Kosong')
+                    ->falseLabel('Ada Detail Item')
+                    ->queries(
+                        true: fn (\Illuminate\Database\Eloquent\Builder $query) => $query->whereDoesntHave('detailRequests'),
+                        false: fn (\Illuminate\Database\Eloquent\Builder $query) => $query->whereHas('detailRequests'),
+                    )
             ])
             ->actions([
                 ActionGroup::make([
