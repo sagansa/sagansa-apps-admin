@@ -21,7 +21,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Actions\ActionGroup;
 use App\Filament\Resources\Panel\RequestPurchaseResource\RelationManagers\DetailRequestsRelationManager;
 use Illuminate\Support\Facades\Auth;
-use Filament\Forms\Set;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Utilities\Get;
 
 class RequestPurchaseResource extends Resource
@@ -54,20 +54,31 @@ class RequestPurchaseResource extends Resource
 
     public static function form(Schema $form): Schema
     {
-        return $form->schema([
-            Section::make()->schema([
-                Grid::make(['md' => 2])->schema([
-                    StoreSelect::make('store_id'),
+        return $form
+            ->schema([
+                Grid::make(3)
+                    ->schema([
+                        // Left Column: Items List
+                        Section::make('Daftar Item Pembelian')
+                            ->description('Pilih produk, tentukan jumlah, dan metode pembayaran.')
+                            ->schema([
+                                self::getItemsRepeater(),
+                            ])
+                            ->columnSpan(['lg' => 2]),
 
-                    DateInput::make('date'),
-
-                ]),
-            ]),
-
-            Section::make()->schema([
-                self::getItemsRepeater(),
-            ]),
-        ]);
+                        // Right Column: Main Info
+                        Section::make('Informasi Utama')
+                            ->description('Pilih toko dan tanggal transaksi.')
+                            ->schema([
+                                StoreSelect::make('store_id')
+                                    ->required(),
+                                DateInput::make('date')
+                                    ->required(),
+                            ])
+                            ->columnSpan(['lg' => 1]),
+                    ]),
+            ])
+            ->columns(1);
     }
 
     public static function table(Table $table): Table
@@ -181,7 +192,7 @@ class RequestPurchaseResource extends Resource
                     ->afterStateUpdated(fn (Set $set, $state) => 
                         $set('payment_type_id', optional(Product::find($state))->payment_type_id ?? 1)
                     )
-                    ->columnSpan(3),
+                    ->columnSpan(fn ($operation) => $operation === 'create' ? 4 : 3),
 
                 TextInput::make('quantity_plan')
                     ->required()
@@ -193,7 +204,7 @@ class RequestPurchaseResource extends Resource
                         $product = Product::find($get('product_id'));
                         return $product ? $product->unit->unit : '';
                     })
-                    ->columnSpan(1),
+                    ->columnSpan(fn ($operation) => $operation === 'create' ? 2 : 1),
 
                 Select::make('payment_type_id')
                     ->hiddenLabel()

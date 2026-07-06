@@ -242,13 +242,13 @@ class MonthlySalaryResource extends Resource
                                     $detail = $record->user?->applicantDetail;
                                     if ($detail) {
                                         return new \Illuminate\Support\HtmlString("
-                                            <div class='text-sm space-y-1 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
-                                                <div><strong>Bank:</strong> " . e($detail->bank_name ?? '—') . "</div>
-                                                <div><strong>No. Rekening:</strong> " . e($detail->bank_account_number ?? '—') . "</div>
-                                                <div><strong>Atas Nama:</strong> " . e($detail->bank_account_name ?? '—') . "</div>
-                                                <div class='text-danger-600 font-medium'><strong>Biaya Admin Transfer:</strong> Rp " . number_format($detail->admin_fee ?? 0, 0, ',', '.') . "</div>
-                                            </div>
-                                        ");
+                                             <div class='text-sm space-y-1 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
+                                                 <div><strong>Bank:</strong> " . e($detail->bank_name ?? '—') . "</div>
+                                                 <div><strong>No. Rekening:</strong> " . e($detail->bank_account_number ?? '—') . "</div>
+                                                 <div><strong>Atas Nama:</strong> " . e($detail->bank_account_name ?? '—') . "</div>
+                                                 <div class='text-danger-600 font-medium'><strong>Biaya Admin Transfer:</strong> Rp " . number_format($detail->admin_fee ?? 0, 0, ',', '.') . "</div>
+                                             </div>
+                                         ");
                                     }
                                     return new \Illuminate\Support\HtmlString("
                                         <div class='text-sm text-gray-500 italic bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
@@ -260,13 +260,61 @@ class MonthlySalaryResource extends Resource
                             Placeholder::make('salary_breakdown_info')
                                 ->label('Rincian Gaji Bersih')
                                 ->content(function () use ($record) {
-                                    $monthlyPart = (float) $record->total_salary - (float) ($record->daily_salary_total ?? 0);
+                                    $baseSalary = (float) $record->base_salary;
+                                    $deductions = $record->deductions ?? [];
+                                    $latePenalties = (float) ($deductions['late_penalties'] ?? 0);
+                                    $manualPenalties = (float) ($deductions['manual_penalties'] ?? 0);
+                                    $loanInstallments = (float) ($deductions['loan_installments'] ?? 0);
+                                    $totalDeductions = $latePenalties + $manualPenalties + $loanInstallments;
+                                    
+                                    $monthlyPart = $baseSalary - $totalDeductions;
+                                    $dailySalaryTotal = (float) ($record->daily_salary_total ?? 0);
+                                    
                                     return new \Illuminate\Support\HtmlString("
-                                        <div class='text-sm space-y-1 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700'>
-                                            <div><strong>Gaji Bulanan Bersih (A - Potongan):</strong> Rp " . number_format($monthlyPart, 0, ',', '.') . "</div>
-                                            <div><strong>Gaji Harian Total (B - Terbayar Terpisah):</strong> Rp " . number_format((float) ($record->daily_salary_total ?? 0), 0, ',', '.') . "</div>
-                                            <hr class='border-gray-200 dark:border-gray-700 my-1' />
-                                            <div class='text-primary-600 font-bold'><strong>Gaji Total Bulanan (A - Potongan + B):</strong> Rp " . number_format((float) $record->total_salary, 0, ',', '.') . "</div>
+                                        <div class='text-sm space-y-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm'>
+                                            <!-- Section Pendapatan Tenur -->
+                                            <div class='flex justify-between font-medium text-gray-700 dark:text-gray-300'>
+                                                <span>Gaji Utama Tenur (Gross):</span>
+                                                <span>Rp " . number_format($baseSalary, 0, ',', '.') . "</span>
+                                            </div>
+                                            
+                                            <!-- Section Rincian Potongan -->
+                                            <div class='border-t border-dashed border-gray-200 dark:border-gray-700 pt-2 space-y-1 text-gray-600 dark:text-gray-400'>
+                                                <div class='flex justify-between text-xs'>
+                                                    <span>- Denda Keterlambatan:</span>
+                                                    <span>Rp " . number_format($latePenalties, 0, ',', '.') . "</span>
+                                                </div>
+                                                <div class='flex justify-between text-xs'>
+                                                    <span>- Denda Manual:</span>
+                                                    <span>Rp " . number_format($manualPenalties, 0, ',', '.') . "</span>
+                                                </div>
+                                                <div class='flex justify-between text-xs'>
+                                                    <span>- Cicilan Kasbon:</span>
+                                                    <span>Rp " . number_format($loanInstallments, 0, ',', '.') . "</span>
+                                                </div>
+                                                <div class='flex justify-between text-sm font-semibold text-danger-600 dark:text-danger-400 pt-1'>
+                                                    <span>Total Potongan:</span>
+                                                    <span>- Rp " . number_format($totalDeductions, 0, ',', '.') . "</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Sisa Gaji Bulanan Bersih (nominal transfer) -->
+                                            <div class='border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between text-primary-600 dark:text-primary-400 font-bold text-base'>
+                                                <span>Gaji Bulanan Bersih (A - Potongan):</span>
+                                                <span>Rp " . number_format($monthlyPart, 0, ',', '.') . "</span>
+                                            </div>
+                                            
+                                            <!-- Info Gaji Harian -->
+                                            <div class='border-t border-dashed border-gray-200 dark:border-gray-700 pt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400'>
+                                                <span>Gaji Harian Total (B - Terbayar Terpisah):</span>
+                                                <span>Rp " . number_format($dailySalaryTotal, 0, ',', '.') . "</span>
+                                            </div>
+                                            
+                                            <!-- Gaji Total Bulanan -->
+                                            <div class='border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400 font-medium'>
+                                                <span>Gaji Total Bulanan (A - Potongan + B):</span>
+                                                <span>Rp " . number_format((float) $record->total_salary, 0, ',', '.') . "</span>
+                                            </div>
                                         </div>
                                     ");
                                 }),
