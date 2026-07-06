@@ -33,7 +33,6 @@ class TransferToAccountResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Setting';
 
     protected static ?string $cluster = Settings::class;
 

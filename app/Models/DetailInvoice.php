@@ -13,6 +13,20 @@ class DetailInvoice extends Model
 
     protected $guarded = [];
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // Auto-update status detail_request ke "done" (2) saat detail invoice dibuat
+        static::created(function (self $detailInvoice) {
+            if ($detailInvoice->detail_request_id) {
+                DetailRequest::where('id', $detailInvoice->detail_request_id)
+                    ->where('status', '4') // Hanya yang statusnya approved
+                    ->update(['status' => 2]);
+            }
+        });
+    }
+
     public function invoicePurchase()
     {
         return $this->belongsTo(InvoicePurchase::class);

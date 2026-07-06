@@ -40,6 +40,16 @@ class PublicStorageUrl
             $path = substr($path, strlen('storage/'));
         }
 
-        return $path === '' ? null : Storage::disk('public')->url($path);
+        if ($path === '') {
+            return null;
+        }
+
+        // Redirect mobile presence/readiness uploads to the API media server domain
+        if (str_contains($path, 'presences/') || str_contains($path, 'readinesses/')) {
+            $apiUrl = rtrim(env('API_URL', 'https://api.sagansa.id'), '/');
+            return $apiUrl . '/media/' . $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

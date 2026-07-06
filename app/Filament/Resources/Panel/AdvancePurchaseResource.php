@@ -16,6 +16,7 @@ use Filament\Tables\Table;
 use App\Models\AdvancePurchase;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\TextInput;
 use App\Filament\Resources\Panel\AdvancePurchaseResource\Pages;
@@ -41,7 +42,6 @@ class AdvancePurchaseResource extends Resource
 
     protected static ?string $cluster = Purchases::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Advances';
 
     public static function getModelLabel(): string
     {
@@ -61,17 +61,95 @@ class AdvancePurchaseResource extends Resource
     public static function form(Schema $form): Schema
     {
         return $form->schema([
-            Section::make()
-                ->schema(static::getDetailsFormHeadSchema())
-                ->columns(2),
+            Grid::make(['default' => 1, 'md' => 3])
+                ->schema([
+                    // Left Column (Grid span 2 for details and products)
+                    Grid::make(['default' => 1])
+                        ->schema([
+                            Section::make('Informasi Pembelian')
+                                ->schema([
+                                    SupplierSelect::make('supplier_id'),
+                                    StoreSelect::make('store_id'),
+                                    DateInput::make('date'),
+                                ])
+                                ->columns(2),
 
-            Section::make('Detail Pembelian')->schema([
-                self::getItemsRepeater(),
-            ]),
+                            Section::make('Detail Barang Belanja')
+                                ->schema([
+                                    self::getItemsRepeater(),
+                                ]),
+                        ])
+                        ->columnSpan(['md' => 2]),
 
-            Section::make()
-                ->schema(static::getDetailsFormBottomSchema())
-                ->columns(2),
+                    // Right Column (Grid span 1 for cash advance, status, summary, and receipt)
+                    Grid::make(['default' => 1])
+                        ->schema([
+                            Section::make('Sumber Dana & Validasi')
+                                ->schema([
+                                    Select::make('cash_advance_id')
+                                        ->required(fn() => Auth::user()->hasRole('staff'))
+                                        ->label('Cash Advance')
+                                        ->inlineLabel()
+                                        ->relationship(
+                                            name: 'cashAdvance',
+                                            modifyQueryUsing: fn(Builder $query) =>
+                                            Auth::user()->hasRole('staff')
+                                            ? $query->where('user_id', Auth::id())->where('status', 1)
+                                            : $query,
+                                        )
+                                        ->getOptionLabelFromRecordUsing(fn(CashAdvance $record) => "{$record->cash_advance_name}")
+                                        ->default(function () {
+                                            if (Auth::user()->hasRole('staff')) {
+                                                $latest = CashAdvance::where('user_id', Auth::id())
+                                                    ->where('status', 1)
+                                                    ->latest('created_at')
+                                                    ->first();
+                                                return $latest?->id;
+                                            }
+                                            return null;
+                                        })
+                                        ->disabled(fn(?AdvancePurchase $record) => !Auth::user()->hasRole('admin') && $record?->status === 2),
+
+                                    Select::make('status')
+                                        ->required()
+                                        ->inlineLabel()
+                                        ->required(fn() => Auth::user()->hasRole('admin'))
+                                        ->hidden(fn($operation) => $operation === 'create')
+                                        ->disabled(fn() => Auth::user()->hasRole('staff'))
+                                        ->preload()
+                                        ->options([
+                                            '1' => 'belum diperiksa',
+                                            '2' => 'valid',
+                                            '3' => 'diperbaiki',
+                                            '4' => 'periksa ulang',
+                                        ]),
+                                ]),
+
+                            Section::make('Ringkasan Biaya')
+                                ->schema([
+                                    CurrencyInput::make('subtotal_price')
+                                        ->readOnly(),
+
+                                    CurrencyInput::make('discount_price')
+                                        ->debounce(2000)
+                                        ->reactive()
+                                        ->afterStateUpdated(fn($state, Set $set, Get $get) => $set('total_price', $get('subtotal_price') - $state)),
+
+                                    CurrencyInput::make('total_price')
+                                        ->readOnly()
+                                        ->reactive(),
+
+                                    Notes::make('notes'),
+                                ]),
+
+                            Section::make('Bukti Nota / Faktur')
+                                ->schema([
+                                    ImageInput::make('image')
+                                        ->directory('images/AdvancePurchase'),
+                                ]),
+                        ])
+                        ->columnSpan(['md' => 1]),
+                ]),
         ]);
     }
 
@@ -89,6 +167,13 @@ class AdvancePurchaseResource extends Resource
             ->columns(AdvancePurchaseTable::schema())
             ->filters([])
             ->actions([
+                \Filament\Actions\Action::make('validate')
+                    ->label('Validate')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(fn (AdvancePurchase $record) => $record->update(['status' => 2]))
+                    ->visible(fn (AdvancePurchase $record) => Auth::user()->hasRole('admin') && $record->status !== 2),
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
                     \Filament\Actions\ViewAction::make(),
@@ -123,47 +208,7 @@ class AdvancePurchaseResource extends Resource
         ];
     }
 
-    public static function getDetailsFormHeadSchema(): array
-    {
-        return [
-            ImageInput::make('image')
-                ->directory('images/AdvancePurchase'),
 
-            SupplierSelect::make('supplier_id'),
-
-            Select::make('cash_advance_id')
-                ->required(fn() => Auth::user()->hasRole('staff'))
-                ->disabled(fn() => Auth::user()->hasRole('admin'))
-                ->label('Cash Advance')
-                ->inlineLabel()
-                ->relationship(
-                    name: 'cashAdvance',
-                    modifyQueryUsing: fn(Builder $query) =>
-                    Auth::user()->hasRole('staff')
-                    ? $query->where('user_id', Auth::id())->where('status', 1)
-                    : $query,
-                )
-                ->getOptionLabelFromRecordUsing(fn(CashAdvance $record) => "{$record->cash_advance_name}"),
-
-            StoreSelect::make('store_id'),
-
-            DateInput::make('date'),
-
-            Select::make('status')
-                ->required()
-                ->inlineLabel()
-                ->required(fn() => Auth::user()->hasRole('admin'))
-                ->hidden(fn($operation) => $operation === 'create')
-                ->disabled(fn() => Auth::user()->hasRole('staff'))
-                ->preload()
-                ->options([
-                    '1' => 'belum diperiksa',
-                    '2' => 'valid',
-                    '3' => 'diperbaiki',
-                    '4' => 'periksa ulang',
-                ]),
-        ];
-    }
 
     public static function getItemsRepeater(): Repeater
     {
@@ -231,26 +276,7 @@ class AdvancePurchaseResource extends Resource
             });
     }
 
-    public static function getDetailsFormBottomSchema(): array
-    {
-        return [
-            Section::make()->schema([
-                CurrencyInput::make('subtotal_price')
-                    ->readOnly(),
 
-                CurrencyInput::make('discount_price')
-                    ->debounce(2000)
-                    ->reactive()
-                    ->afterStateUpdated(fn($state, Set $set, Get $get) => $set('total_price', $get('subtotal_price') - $state)),
-
-                CurrencyInput::make('total_price')
-                    ->readOnly()
-                    ->reactive(),
-
-                Notes::make('notes'),
-            ]),
-        ];
-    }
 
     protected static function updateUnitPrice(Get $get, Set $set): void
     {

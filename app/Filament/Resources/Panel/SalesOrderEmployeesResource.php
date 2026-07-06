@@ -35,7 +35,6 @@ class SalesOrderEmployeesResource extends Resource
 {
     protected static ?string $model = SalesOrderEmployee::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Sales';
 
     protected static ?int $navigationSort = 2;
 

@@ -40,7 +40,6 @@ class VehicleResource extends Resource
 
     protected static ?string $cluster = Asset::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Vehicle';
 
     public static function getModelLabel(): string
     {

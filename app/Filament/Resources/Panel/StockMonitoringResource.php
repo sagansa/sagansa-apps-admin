@@ -31,7 +31,6 @@ class StockMonitoringResource extends Resource
 
     protected static ?string $cluster = Stock::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Setting';
 
     public static function getModelLabel(): string
     {

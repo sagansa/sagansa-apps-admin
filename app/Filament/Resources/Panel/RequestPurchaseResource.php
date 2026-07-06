@@ -19,7 +19,9 @@ use App\Models\Product;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Actions\ActionGroup;
+use App\Filament\Resources\Panel\RequestPurchaseResource\RelationManagers\DetailRequestsRelationManager;
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Set;
 use Filament\Schemas\Components\Utilities\Get;
 
 class RequestPurchaseResource extends Resource
@@ -30,7 +32,6 @@ class RequestPurchaseResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Invoice';
 
     protected static ?string $cluster = Purchases::class;
 
@@ -90,21 +91,25 @@ class RequestPurchaseResource extends Resource
                     ->state(function (RequestPurchase $record): string {
                         return $record->detailRequests->map(function ($item) {
                             $statusLabels = [
-                                '1' => '<span class="badge bg-warning">process</span>',
-                                '2' => '<span class="badge bg-success">done</span>',
-                                '3' => '<span class="badge bg-danger">reject</span>',
-                                '4' => '<span class="badge bg-info">approved</span>',
-                                '5' => '<span class="badge bg-secondary">not valid</span>',
-                                '6' => '<span class="bg-gray-500 badge">not used</span>',
+                                '1' => '<span style="background:#f59e0b;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.75rem;">⏳ process</span>',
+                                '2' => '<span style="background:#10b981;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.75rem;">✅ done</span>',
+                                '3' => '<span style="background:#ef4444;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.75rem;">❌ reject</span>',
+                                '4' => '<span style="background:#3b82f6;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.75rem;">✔ approved</span>',
+                                '5' => '<span style="background:#6b7280;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.75rem;">not valid</span>',
+                                '6' => '<span style="background:#9ca3af;color:#fff;padding:1px 6px;border-radius:4px;font-size:0.75rem;">not used</span>',
                             ];
 
-                            // Pilih label status berdasarkan nilai status
-                            $status = $statusLabels[$item->status] ?? '<span class="badge bg-default">unknown</span>';
+                            $status = $statusLabels[$item->status] ?? '<span style="background:#d1d5db;padding:1px 6px;border-radius:4px;font-size:0.75rem;">unknown</span>';
 
-                            return "{$item->product->name} = {$item->quantity_plan} {$item->product->unit->unit} ({$status})";
+                            // Tampilkan tanda perlu approval jika statusnya masih process (1)
+                            $approvalNote = ($item->status == 1)
+                                ? ' <span style="color:#ef4444;font-size:0.7rem;">(perlu approval)</span>'
+                                : ' <span style="color:#10b981;font-size:0.7rem;">(langsung)</span>';
+
+                            return "{$item->product->name} = {$item->quantity_plan} {$item->product->unit->unit} {$status}{$approvalNote}";
                         })->implode('<br>');
                     })
-                    ->html() // Mengizinkan HTML dalam kolom
+                    ->html()
                     ->extraAttributes(['class' => 'whitespace-pre-wrap']),
 
                 TextColumn::make('user.name')->hidden(fn() => !Auth::user()->hasRole('admin')),
@@ -130,7 +135,9 @@ class RequestPurchaseResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            DetailRequestsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
@@ -151,22 +158,29 @@ class RequestPurchaseResource extends Resource
             ->minItems(1)
             ->mutateRelationshipDataBeforeCreateUsing(function (array $data, RequestPurchase $record): array {
                 $data['store_id'] = $record->store_id;
-                $data['payment_type_id'] = optional(Product::find($data['product_id']))->payment_type_id;
-                $data['status'] = '1';
+                $product = Product::find($data['product_id']);
+                $productDefault = $product->payment_type_id ?? 1;
+                $plannedPayment = $data['payment_type_id'] ?? $productDefault;
+                
+                // Produk default Transfer (1) tetapi berencana membayar Tunai (2) -> butuh approval (1)
+                // Selain itu -> langsung approved (4)
+                $data['status'] = ($productDefault == 1 && $plannedPayment == 2) ? '1' : '4';
 
                 return $data;
             })
             ->schema([
                 Select::make('product_id')
-                    ->relationship('product', 'name')
+                    ->relationship('product', 'name', modifyQueryUsing: fn ($query) => $query->where('payment_type_id', '!=', '3'))
                     ->hiddenLabel()
                     ->placeholder('Product')
                     ->required()
                     ->preload()
                     ->searchable()
                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
-                    // ->disabled(fn (Get $get) => $get('status') != 1)
                     ->reactive()
+                    ->afterStateUpdated(fn (Set $set, $state) => 
+                        $set('payment_type_id', optional(Product::find($state))->payment_type_id ?? 1)
+                    )
                     ->columnSpan(3),
 
                 TextInput::make('quantity_plan')
@@ -181,6 +195,17 @@ class RequestPurchaseResource extends Resource
                     })
                     ->columnSpan(1),
 
+                Select::make('payment_type_id')
+                    ->hiddenLabel()
+                    ->placeholder('Payment Type')
+                    ->options([
+                        '1' => 'Transfer',
+                        '2' => 'Tunai',
+                    ])
+                    ->required()
+                    ->reactive()
+                    ->columnSpan(2),
+
                 Select::make('status')
                     ->hiddenLabel()
                     ->options([
@@ -192,12 +217,14 @@ class RequestPurchaseResource extends Resource
                         '6' => 'not used',
                     ])
                     ->default(1)
+                    // Hanya admin yang bisa ubah status; saat create dikontrol otomatis
+                    ->hidden(fn($operation) => $operation === 'create')
                     ->disabled(fn() => !Auth::user()->hasRole('admin'))
                     ->columnSpan(2),
 
             ])
             ->columns([
-                'md' => 6,
+                'md' => 8,
             ])
             ->defaultItems(1);
     }

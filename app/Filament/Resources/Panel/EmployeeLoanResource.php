@@ -23,7 +23,6 @@ class EmployeeLoanResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Salaries';
 
     protected static ?string $pluralLabel = 'Employee Loans';
 

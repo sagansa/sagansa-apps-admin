@@ -43,7 +43,6 @@ class StorageStockResource extends Resource
 
     protected static ?string $cluster = Stock::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Stock';
 
     public static function getModelLabel(): string
     {
@@ -83,17 +82,21 @@ class StorageStockResource extends Resource
         ]);
     }
 
-    public static function table(Table $table): Table
+    public static function getEloquentQuery(): Builder
     {
-        $storageStocks = StorageStock::query();
+        $query = parent::getEloquentQuery()->with(['productStorageStocks.product.unit']);
 
         if (Auth::user()->hasRole('storage-staff')) {
-            $storageStocks = $storageStocks->where('created_by_id', Auth::id());
+            $query->where('created_by_id', Auth::id());
         }
 
+        return $query;
+    }
+
+    public static function table(Table $table): Table
+    {
         return $table
             ->poll('60s')
-            ->query($storageStocks)
             ->columns([
                 TextColumn::make('date'),
 
@@ -159,18 +162,14 @@ class StorageStockResource extends Resource
 
     public static function getProductsRepeater(): Repeater
     {
-        $products = Product::where('request', '1')->orderBy('name', 'asc')->get()->map(function ($item) {
-            return [
-                'product_id' => $item->id,
-                'quantity' => $item->quantity,
-            ];
-        })->toArray();
-
         return Repeater::make('productStorageStocks')
-            // ->label(__('crud.remainingStocks.products'))
-
             ->hiddenLabel()
-            ->default($products)
+            ->default(fn () => Product::where('request', '1')->orderBy('name', 'asc')->get()->map(function ($item) {
+                return [
+                    'product_id' => $item->id,
+                    'quantity' => $item->quantity,
+                ];
+            })->toArray())
             ->relationship()
             ->addable(false)
             ->deletable(false)
@@ -182,14 +181,17 @@ class StorageStockResource extends Resource
                     ->label('Product')
                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
                     ->required()
-                    ->options(Product::where('request', '1')->orderBy('name', 'asc')->get()->pluck('name', 'id'))
+                    ->options(Product::where('request', '1')->orderBy('name', 'asc')->pluck('name', 'id'))
                     ->columnSpan([
                         'md' => 5,
                     ]),
                 NominalInput::make('quantity')
                     ->suffix(function ($get) {
-                        $product = Product::find($get('product_id'));
-                        return $product ? $product->unit->unit : '';
+                        static $productUnits = null;
+                        if ($productUnits === null) {
+                            $productUnits = Product::with('unit')->get()->pluck('unit.unit', 'id');
+                        }
+                        return $productUnits[$get('product_id')] ?? '';
                     })
                     ->columnSpan([
                         'md' => 5,

@@ -31,7 +31,6 @@ class ShiftStoreResource extends Resource
 
     protected static ?string $cluster = Store::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Store';
 
     public static function getModelLabel(): string
     {

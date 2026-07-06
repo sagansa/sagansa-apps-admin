@@ -37,7 +37,6 @@ class PresenceResource extends Resource
 
     protected static ?string $cluster = HRD::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Personal Data';
 
     protected static ?string $pluralLabel = 'Presence';
 
@@ -122,13 +121,16 @@ class PresenceResource extends Resource
                 //     ->url(fn($record) => ImageHelper::getImageUrl($record->image_in)),
 
                 ImageColumn::make('image_in')
+                    ->disk(null)
                     ->openUrlInNewTab()
                     ->visibility('public')
                     ->state(fn($record) => ImageHelper::getImageUrl($record->image_in))
                     ->url(fn($record) => ImageHelper::getImageUrl($record->image_in)),
 
                 ImageOpenUrlColumn::make('image_out')
+                    ->disk(null)
                     ->visibility('public')
+                    ->state(fn($record) => ImageHelper::getImageUrl($record->image_out))
                     ->url(fn($record) => ImageHelper::getImageUrl($record->image_out)),
 
                 TextColumn::make('createdBy.name')

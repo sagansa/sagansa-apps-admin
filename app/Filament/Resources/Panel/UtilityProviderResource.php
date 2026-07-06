@@ -29,7 +29,6 @@ class UtilityProviderResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Utility';
 
     protected static ?string $cluster = Settings::class;
 

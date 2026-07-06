@@ -26,7 +26,6 @@ class MaterialGroupResource extends Resource
 
     protected static ?string $cluster = Settings::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Product';
 
     public static function getModelLabel(): string
     {

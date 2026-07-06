@@ -25,7 +25,6 @@ class EmployeeConsumptionResource extends Resource
 
     protected static ?string $cluster = Stock::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Consumption';
 
     public static function getModelLabel(): string
     {

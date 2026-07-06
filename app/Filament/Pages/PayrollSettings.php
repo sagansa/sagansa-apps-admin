@@ -22,7 +22,7 @@ class PayrollSettings extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static string | \UnitEnum | null $navigationGroup = 'HRD';
+    protected static string | \UnitEnum | null $navigationGroup = 'SDM';
 
     protected static ?string $navigationLabel = 'Payroll Settings';
 

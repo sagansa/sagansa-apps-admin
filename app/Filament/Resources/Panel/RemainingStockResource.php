@@ -37,7 +37,6 @@ class RemainingStockResource extends Resource
 
     protected static ?string $cluster = Stock::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Stock';
 
     public static function getModelLabel(): string
     {

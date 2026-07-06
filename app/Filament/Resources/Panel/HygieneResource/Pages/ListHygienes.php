@@ -12,6 +12,13 @@ class ListHygienes extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [Actions\CreateAction::make()];
+        return [
+            Actions\CreateAction::make()
+                ->mutateFormDataUsing(function (array $data): array {
+                    $data['created_by_id'] = auth()->id();
+                    $data['status'] = 1;
+                    return $data;
+                }),
+        ];
     }
 }

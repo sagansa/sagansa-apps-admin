@@ -10,6 +10,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationGroup;
 use Filament\Pages;
+use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -32,26 +33,46 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->navigationGroups([
                 NavigationGroup::make()
-                    ->label('Access')
-                    ->icon('heroicon-o-shield-check'),
+                    ->label('Akses')
+                    ->icon('heroicon-o-shield-check')
+                    ->collapsible(),
                 NavigationGroup::make()
-                    ->label('Transaction')
-                    ->icon('heroicon-o-shopping-cart'),
+                    ->label('Transaksi')
+                    ->icon('heroicon-o-shopping-cart')
+                    ->collapsible(),
                 NavigationGroup::make()
-                    ->label('Asset')
-                    ->icon('heroicon-o-globe-alt'),
+                    ->label('Kas')
+                    ->icon('heroicon-o-banknotes')
+                    ->collapsible(),
                 NavigationGroup::make()
-                    ->label('HRD')
-                    ->icon('heroicon-o-user-group'),
+                    ->label('Persediaan')
+                    ->icon('heroicon-o-cube')
+                    ->collapsible(),
                 NavigationGroup::make()
-                    ->label('Cash')
-                    ->icon('heroicon-o-banknotes'),
+                    ->label('Toko')
+                    ->icon('heroicon-o-building-storefront')
+                    ->collapsible(),
                 NavigationGroup::make()
-                    ->label('Stock')
-                    ->icon('heroicon-o-document-chart-bar'),
+                    ->label('SDM')
+                    ->icon('heroicon-o-user-group')
+                    ->collapsible(),
+                NavigationGroup::make()
+                    ->label('Aset')
+                    ->icon('heroicon-o-truck')
+                    ->collapsible(),
+                NavigationGroup::make()
+                    ->label('Utilitas')
+                    ->icon('heroicon-o-bolt')
+                    ->collapsible(),
+                NavigationGroup::make()
+                    ->label('Sistem')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->collapsible(),
             ])
             ->default()
-            ->topNavigation()
+            ->sidebarCollapsibleOnDesktop()
+            ->collapsibleNavigationGroups()
+            ->subNavigationPosition(SubNavigationPosition::Top)
             ->id('admin')
             ->path('admin')
             ->login()

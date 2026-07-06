@@ -23,7 +23,6 @@ class TransferCardStorageResource extends Resource
 
     protected static ?string $cluster = Stock::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Transfer';
 
     public static function getModelLabel(): string
     {

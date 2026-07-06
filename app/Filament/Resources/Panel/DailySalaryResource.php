@@ -36,7 +36,6 @@ class DailySalaryResource extends Resource
 
     protected static ?string $cluster = HRD::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Salaries';
 
     protected static ?string $pluralLabel = 'Daily Salaries';
 

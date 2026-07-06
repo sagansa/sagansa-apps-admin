@@ -101,6 +101,17 @@ class InvoicePurchaseTable
             TextColumn::make('createdBy.name')
                 ->hidden(fn() => Auth::user()->hasRole('staff'))
                 ->toggleable(isToggledHiddenByDefault: true),
+
+            TextColumn::make('payment_receipt_status')
+                ->label('Payment Receipt')
+                ->badge()
+                ->state(fn (InvoicePurchase $record): string =>
+                    $record->paymentReceipts->isNotEmpty() ? 'Sudah Dibayar' : 'Belum Dibayar'
+                )
+                ->color(fn (string $state): string => match ($state) {
+                    'Sudah Dibayar' => 'success',
+                    default => 'warning',
+                }),
         ];
     }
 }

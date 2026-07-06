@@ -51,7 +51,6 @@ class SalesOrderDirectsResource extends Resource
 {
     protected static ?string $model = SalesOrderDirect::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Sales';
 
     protected static ?string $pluralLabel = 'Order';
 

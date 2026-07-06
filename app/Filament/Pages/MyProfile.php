@@ -18,7 +18,7 @@ class MyProfile extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static string | \UnitEnum | null $navigationGroup = 'Personal Data';
+    protected static string | \UnitEnum | null $navigationGroup = 'Akses';
 
     protected static ?string $navigationLabel = 'Profil Saya';
 

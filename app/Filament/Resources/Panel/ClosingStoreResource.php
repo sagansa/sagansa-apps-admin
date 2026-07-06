@@ -35,6 +35,15 @@ use App\Models\AccountCashless;
 use Filament\Actions\ActionGroup;
 use Filament\Tables\Columns\ColumnGroup;
 use Illuminate\Database\Eloquent\Collection;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\TextInput;
+use App\Models\Vehicle;
+use App\Models\PaymentType;
+use App\Filament\Forms\BaseSelect;
+use App\Filament\Forms\DecimalInput;
+use App\Filament\Forms\NominalInput;
+use App\Filament\Forms\PaymentStatusSelectInput;
+use App\Filament\Forms\SupplierSelect;
 
 class ClosingStoreResource extends Resource
 {
@@ -44,7 +53,6 @@ class ClosingStoreResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Closing';
 
     protected static ?string $pluralLabel = 'Store';
 
@@ -65,6 +73,17 @@ class ClosingStoreResource extends Resource
         return __('crud.closingStores.collectionTitle');
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        if (auth()->check() && auth()->user()->hasRole('staff')) {
+            $query->where('created_by_id', auth()->id());
+        }
+        
+        return $query;
+    }
+
     public static function form(Schema $form): Schema
     {
         return $form->schema([
@@ -74,6 +93,16 @@ class ClosingStoreResource extends Resource
                         ->afterStateUpdated(function ($state, callable $set) {
                             if ($state) {
                                 $set('cash_from_yesterday', ClosingStoreResource::getCashForTomorrow($state));
+
+                                // Auto populate cashless repeater
+                                $accounts = \App\Models\AccountCashless::where('store_id', $state)->get();
+                                $cashlessesData = $accounts->map(fn($acc) => [
+                                    'account_cashless_id' => $acc->id,
+                                    'bruto_apl' => 0,
+                                ])->toArray();
+                                $set('cashlesses', $cashlessesData);
+                            } else {
+                                $set('cashlesses', []);
                             }
                         }),
 
@@ -125,6 +154,7 @@ class ClosingStoreResource extends Resource
                             modifyQueryUsing: fn(Builder $query, $get) => $query
                                 ->where('payment_type_id', '2')
                                 ->where('status', '1')
+                                ->when($get('store_id'), fn($query, $storeId) => $query->where('store_id', $storeId))
                                 ->whereDate('date', '>=', now()->subDays(10)) // add this line
                                 ->orderBy('date', 'desc')
                         )
@@ -134,6 +164,77 @@ class ClosingStoreResource extends Resource
                         ->afterStateUpdated(function (Get $get, Set $set) {
                             self::updateTotalOmzet($get, $set);
                             // self::updateFuelServiceStatus($get, $set);
+                        })
+                        ->createOptionForm([
+                            Grid::make(['default' => 2])->schema([
+                                ImageInput::make('image')
+                                    ->directory('images/FuelService'),
+                                SupplierSelect::make('supplier_id'),
+                                DateInput::make('date')
+                                    ->default(now()->toDateString()),
+                                Radio::make('fuel_service')
+                                    ->inline()
+                                    ->inlineLabel()
+                                    ->required()
+                                    ->options([
+                                        '1' => 'fuel',
+                                        '2' => 'service',
+                                    ])
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, Set $set) {
+                                        if ($state == 1) {
+                                            $set('service_details', []);
+                                            $set('amount', 0);
+                                        }
+                                    }),
+                                BaseSelect::make('vehicle_id')
+                                    ->required()
+                                    ->relationship(
+                                        name: 'vehicle',
+                                        modifyQueryUsing: fn (Builder $query) => $query->where('status', '1'),
+                                    )
+                                    ->getOptionLabelFromRecordUsing(fn (Vehicle $record) => "{$record->no_register}")
+                                    ->searchable()
+                                    ->preload(),
+                                NominalInput::make('km')
+                                    ->label('km')
+                                    ->suffix('km'),
+                                DecimalInput::make('liter')
+                                    ->suffix('liter'),
+                                CurrencyInput::make('amount')
+                                    ->readonly(fn (Get $get) => $get('fuel_service') == 2),
+                                PaymentStatusSelectInput::make('status')
+                                    ->default(1),
+                                Repeater::make('service_details')
+                                    ->label('Detail Service')
+                                    ->schema([
+                                        TextInput::make('name')
+                                            ->label('Nama Service/Part')
+                                            ->required(),
+                                        CurrencyInput::make('price')
+                                            ->label('Biaya')
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function (Get $get, Set $set) {
+                                                $set('../../amount', collect($get('../../service_details') ?? [])->sum('price'));
+                                            }),
+                                    ])
+                                    ->live()
+                                    ->afterStateUpdated(function (Get $get, Set $set) {
+                                        $set('amount', collect($get('service_details') ?? [])->sum('price'));
+                                    })
+                                    ->visible(fn (Get $get) => $get('fuel_service') == 2)
+                                    ->columnSpanFull(),
+                            ]),
+                            Notes::make('notes'),
+                        ])
+                        ->createOptionUsing(function (array $data, Get $get): int {
+                            $data['store_id'] = $get('store_id');
+                            $data['created_by_id'] = auth()->id();
+                            $data['payment_type_id'] = 2; // Tunai (Cash)
+                            $data['status'] = 1; // pending/unpaid
+                            $fuelService = FuelService::create($data);
+                            return $fuelService->id;
                         }),
 
                     Select::make('dailySalaries')

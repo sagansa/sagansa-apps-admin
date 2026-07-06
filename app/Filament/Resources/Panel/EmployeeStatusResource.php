@@ -21,7 +21,6 @@ class EmployeeStatusResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Personal Data';
 
     protected static ?string $cluster = HRD::class;
 

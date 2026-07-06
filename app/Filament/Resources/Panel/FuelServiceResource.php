@@ -12,12 +12,17 @@ use App\Filament\Forms\NominalInput;
 use App\Filament\Forms\Notes;
 use App\Filament\Forms\PaymentStatusSelectInput;
 use App\Filament\Forms\SupplierSelect;
+use App\Filament\Forms\StoreSelect;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use App\Models\FuelService;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\Panel\FuelServiceResource\Pages;
 use App\Filament\Tables\FuelServiceTable;
@@ -55,6 +60,17 @@ class FuelServiceResource extends Resource
         return __('crud.fuelServices.collectionTitle');
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        if (auth()->check() && auth()->user()->hasRole('staff')) {
+            $query->where('created_by_id', auth()->id());
+        }
+        
+        return $query;
+    }
+
     public static function form(Schema $form): Schema
     {
         return $form->schema([
@@ -76,7 +92,14 @@ class FuelServiceResource extends Resource
                         ->options([
                             '1' => 'fuel',
                             '2' => 'service',
-                        ]),
+                        ])
+                        ->reactive()
+                        ->afterStateUpdated(function ($state, Set $set) {
+                            if ($state == 1) {
+                                $set('service_details', []);
+                                $set('amount', 0);
+                            }
+                        }),
 
                     BaseSelect::make('vehicle_id')
                         ->required()
@@ -87,6 +110,10 @@ class FuelServiceResource extends Resource
                         ->getOptionLabelFromRecordUsing(fn (Vehicle $record) => "{$record->no_register}")
                         ->searchable()
                         ->preload(),
+
+                    StoreSelect::make('store_id')
+                        ->label('Store Dibebankan')
+                        ->nullable(),
 
                     BaseSelect::make('payment_type_id')
                         ->relationship(
@@ -102,7 +129,29 @@ class FuelServiceResource extends Resource
                     DecimalInput::make('liter')
                         ->suffix('liter'),
 
-                    CurrencyInput::make('amount'),
+                    CurrencyInput::make('amount')
+                        ->readonly(fn (Get $get) => $get('fuel_service') == 2),
+
+                    Repeater::make('service_details')
+                        ->label('Detail Service')
+                        ->schema([
+                            TextInput::make('name')
+                                ->label('Nama Service/Part')
+                                ->required(),
+                            CurrencyInput::make('price')
+                                ->label('Biaya')
+                                ->required()
+                                ->reactive()
+                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                    $set('../../amount', collect($get('../../service_details') ?? [])->sum('price'));
+                                }),
+                        ])
+                        ->live()
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            $set('amount', collect($get('service_details') ?? [])->sum('price'));
+                        })
+                        ->visible(fn (Get $get) => $get('fuel_service') == 2)
+                        ->columnSpanFull(),
 
                     PaymentStatusSelectInput::make('status'),
 

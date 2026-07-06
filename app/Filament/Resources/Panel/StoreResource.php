@@ -33,7 +33,6 @@ class StoreResource extends Resource
 
     protected static ?string $cluster = ClustersStore::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Store';
 
     public static function getModelLabel(): string
     {

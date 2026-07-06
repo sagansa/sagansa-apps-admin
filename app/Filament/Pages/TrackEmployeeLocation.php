@@ -18,7 +18,7 @@ class TrackEmployeeLocation extends Page
 {
     // protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-map-pin';
 
-    protected static string | \UnitEnum | null $navigationGroup = 'HRD';
+    protected static string | \UnitEnum | null $navigationGroup = 'SDM';
 
     protected static ?string $navigationLabel = 'Lacak Lokasi Pegawai';
 

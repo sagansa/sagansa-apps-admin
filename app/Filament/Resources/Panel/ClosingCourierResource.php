@@ -31,7 +31,6 @@ class ClosingCourierResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Closing';
 
     protected static ?string $pluralLabel = 'Courier';
 

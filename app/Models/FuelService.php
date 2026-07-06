@@ -13,9 +13,18 @@ class FuelService extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'service_details' => 'array',
+    ];
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function store()
+    {
+        return $this->belongsTo(Store::class);
     }
 
     public function vehicle()

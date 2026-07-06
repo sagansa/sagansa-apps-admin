@@ -29,7 +29,6 @@ class HygieneResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Hygiene';
 
     protected static ?string $cluster = Store::class;
 
@@ -62,18 +61,32 @@ class HygieneResource extends Resource
         ]);
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        if (Auth::user() && Auth::user()->hasRole('staff')) {
+            $query->where('created_by_id', Auth::id());
+        }
+        return $query;
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->poll('60s')
-            ->query(self::getQuery())
             ->columns(self::getColumns())
             ->filters([
                 SelectStoreFilter::make('store_id'),
             ])
             ->actions([
                 ActionGroup::make([
-                    \Filament\Actions\EditAction::make(),
+                    \Filament\Actions\EditAction::make()
+                        ->mutateFormDataUsing(function (array $data): array {
+                            if (Auth::user() && Auth::user()->hasRole('admin')) {
+                                $data['approved_by_id'] = Auth::id();
+                            }
+                            return $data;
+                        }),
                     \Filament\Actions\ViewAction::make(),
                 ])
             ])
@@ -85,22 +98,13 @@ class HygieneResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
-    protected static function getQuery(): Builder
-    {
-        $query = Hygiene::query();
-        if (Auth::user()->hasRole('staff')) {
-            $query->where('created_by_id', Auth::id());
-        }
-        return $query;
-    }
-
     protected static function getColumns(): array
     {
         return [
             TextColumn::make('store.nickname'),
             TextColumn::make('created_at'),
             TextColumn::make('createdBy.name')
-                ->visible(fn($record) => auth()->user()->hasRole('admin') || auth()->user()->hasRole('super_admin')),
+                ->visible(fn() => auth()->user() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('super_admin'))),
             TextColumn::make('approvedBy.name'),
         ];
     }
@@ -116,23 +120,20 @@ class HygieneResource extends Resource
     {
         return [
             'index' => Pages\ListHygienes::route('/'),
-            'create' => Pages\CreateHygiene::route('/create'),
-            'view' => Pages\ViewHygiene::route('/{record}'),
-            'edit' => Pages\EditHygiene::route('/{record}/edit'),
+            // 'create' => Pages\CreateHygiene::route('/create'),
+            // 'view' => Pages\ViewHygiene::route('/{record}'),
+            // 'edit' => Pages\EditHygiene::route('/{record}/edit'),
         ];
     }
 
     public static function getItemsRepeater(): array
     {
-        $rooms = Room::orderBy('name', 'asc')->get()->map(fn($item) => [
-            'room_id' => $item->id,
-            'image' => $item->image,
-        ])->toArray();
-
         return [
             Repeater::make('hygieneOfRooms')
                 ->hiddenLabel()
-                ->default($rooms)
+                ->default(fn () => Room::orderBy('name', 'asc')->get()->map(fn($item) => [
+                    'room_id' => $item->id,
+                ])->toArray())
                 ->relationship()
                 ->addable(false)
                 ->deletable(false)

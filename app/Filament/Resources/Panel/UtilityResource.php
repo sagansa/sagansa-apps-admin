@@ -36,7 +36,6 @@ class UtilityResource extends Resource
 
     // protected static ?string $navigationLabel = 'Custom Navigation Label';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Utility';
 
     protected static ?string $cluster = Settings::class;
 

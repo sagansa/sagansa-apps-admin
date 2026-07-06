@@ -42,7 +42,6 @@ class CashAdvanceResource extends Resource
 
     protected static ?string $cluster = Purchases::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Advances';
 
     public static function getModelLabel(): string
     {
@@ -62,10 +61,99 @@ class CashAdvanceResource extends Resource
     public static function form(Schema $form): Schema
     {
         return $form->schema([
-            Section::make()
-                ->schema(static::getDetailsFormHeadSchema()),
+            Grid::make(['default' => 1, 'md' => 3])
+                ->schema([
+                    // Left Column (Grid span 2 for main info)
+                    Grid::make(['default' => 1])
+                        ->schema([
+                            Section::make('Informasi Dasar')
+                                ->schema([
+                                    Select::make('user_id')
+                                        ->label('User')
+                                        ->inlineLabel()
+                                        ->required()
+                                        ->relationship('user', 'name', fn(Builder $query) => $query
+                                            ->whereHas('roles', fn(Builder $query) => $query
+                                                ->where('name', 'staff') || $query
+                                                    ->where('name', 'supervisor')))
+                                        ->searchable()
+                                        ->preload()
+                                        ->default(fn() => Auth::id())
+                                        ->disabled(fn() => !Auth::user()->hasRole('admin'))
+                                        ->dehydrated()
+                                        ->reactive()
+                                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
+                                            if ($state) {
+                                                $before = CashAdvanceResource::getRemainBefore($state);
+                                                $set('before', $before);
+                                                $transfer = $get('transfer') !== null ? (int) $get('transfer') : 0;
+                                                $purchase = $get('purchase') !== null ? (int) $get('purchase') : 0;
+                                                $set('remains', $transfer + $before - $purchase);
+                                            }
+                                        }),
 
-            Section::make()
+                                    DateInput::make('date'),
+
+                                    StatusSelectLabel::make('status')
+                                        ->label('Status')
+                                        ->inlineLabel(),
+
+                                    Notes::make('notes'),
+                                ]),
+
+                            Section::make('Bukti Transfer')
+                                ->schema([
+                                    ImageInput::make('image')
+                                        ->directory('images/CashAdvance'),
+                                ]),
+                        ])
+                        ->columnSpan(['md' => 2]),
+
+                    // Right Column (Grid span 1 for financial calculations)
+                    Section::make('Perhitungan Saldo')
+                        ->schema([
+                            CurrencyInput::make('transfer')
+                                ->label('Transfer')
+                                ->debounce(2000)
+                                ->reactive()
+                                ->afterStateUpdated(function (Set $set, Get $get) {
+                                    self::updateTotalPurchase($get, $set);
+                                }),
+
+                            CurrencyMinusInput::make('before')
+                                ->label('Before (Saldo Sebelumnya)')
+                                ->default(function (Get $get) {
+                                    $userId = Auth::user()->hasRole('admin') ? $get('user_id') : Auth::id();
+                                    return $userId ? self::getRemainBefore($userId) : 0;
+                                })
+                                ->debounce(2000)
+                                ->reactive()
+                                ->afterStateUpdated(function (Set $set, Get $get) {
+                                    self::updateTotalPurchase($get, $set);
+                                }),
+
+                            CurrencyInput::make('purchase')
+                                ->readOnly()
+                                ->label('Purchase (Total Belanja)')
+                                ->afterStateUpdated(function (Set $set, Get $get) {
+                                    self::updateTotalPurchase($get, $set);
+                                }),
+
+                            CurrencyMinusInput::make('remains')
+                                ->readOnly()
+                                ->label('Remains (Sisa Saldo)')
+                                ->default(function (Get $get) {
+                                    $userId = Auth::user()->hasRole('admin') ? $get('user_id') : Auth::id();
+                                    $before = $userId ? self::getRemainBefore($userId) : 0;
+                                    $transfer = $get('transfer') !== null ? (int) $get('transfer') : 0;
+                                    $purchase = $get('purchase') !== null ? (int) $get('purchase') : 0;
+                                    return $transfer + $before - $purchase;
+                                }),
+                        ])
+                        ->columnSpan(['md' => 1]),
+                ]),
+
+            Section::make('Daftar Pembelian')
                 ->schema([
                     static::getItemsRepeater()
                 ])
@@ -106,6 +194,13 @@ class CashAdvanceResource extends Resource
                     ->relationship('user', 'name')
             ])
             ->actions([
+                \Filament\Actions\Action::make('validate')
+                    ->label('Validate')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(fn (CashAdvance $record) => $record->update(['status' => 2]))
+                    ->visible(fn (CashAdvance $record) => Auth::user()->hasRole('admin') && $record->status !== 2),
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
                     \Filament\Actions\ViewAction::make(),
@@ -125,97 +220,6 @@ class CashAdvanceResource extends Resource
                 ]),
             ])
             ->defaultSort('date', 'desc');
-    }
-
-    public static function getDetailsFormHeadSchema(): array
-    {
-        return [
-            Grid::make(['default' => 1])->schema([
-                ImageInput::make('image')
-                    ->directory('images/CashAdvance'),
-
-                Group::make()->schema([
-                    Select::make('user_id')
-                        ->label('User')
-                        ->inlineLabel()
-                        ->required()
-                        ->relationship('user', 'name', fn(Builder $query) => $query
-                            ->whereHas('roles', fn(Builder $query) => $query
-                                ->where('name', 'staff') || $query
-                                    ->where('name', 'supervisor')))
-                        ->searchable()
-                        ->preload()
-                        ->columnSpan([
-                            'md' => 4,
-                        ])
-                        ->reactive()
-                        ->afterStateUpdated(function ($state, Set $set) {
-                            if ($state) {
-                                $set('before', CashAdvanceResource::getRemainBefore($state));
-                            }
-                        }),
-
-                    DateInput::make('date')
-                        ->columnSpan([
-                            'md' => 4,
-                        ]),
-
-                    StatusSelectLabel::make('status')
-                        ->label('Status')
-                        ->inlineLabel()
-                        ->columnSpan([
-                            'md' => 4,
-                        ]),
-
-                    CurrencyInput::make('transfer')
-                        ->label('Transfer')
-                        ->debounce(2000)
-                        ->reactive()
-                        ->afterStateUpdated(function (Set $set, Get $get) {
-                            self::updateTotalPurchase($get, $set);
-                        })
-                        ->columnSpan([
-                            'md' => 3,
-                        ]),
-
-                    CurrencyMinusInput::make('before')
-                        ->label('Before')
-                        ->debounce(2000)
-                        ->reactive()
-                        ->afterStateUpdated(function (Set $set, Get $get) {
-                            self::updateTotalPurchase($get, $set);
-                        })
-                        ->columnSpan([
-                            'md' => 3,
-                        ]),
-
-                    CurrencyInput::make('purchase')
-                        ->readOnly()
-                        ->label('Purchase')
-                        ->afterStateUpdated(function (Set $set, Get $get) {
-                            self::updateTotalPurchase($get, $set);
-                        })
-                        ->columnSpan([
-                            'md' => 3,
-                        ]),
-
-                    CurrencyMinusInput::make('remains')
-                        ->readOnly()
-                        ->label('Remains')
-                        ->columnSpan([
-                            'md' => 3,
-                        ]),
-
-                ])->columns([
-                            'md' => 12,
-                        ]),
-
-                Notes::make('notes'),
-
-            ])->afterStateUpdated(function (Set $set, Get $get) {
-                self::updateTotalPurchase($get, $set);
-            }),
-        ];
     }
 
     public static function getRelations(): array

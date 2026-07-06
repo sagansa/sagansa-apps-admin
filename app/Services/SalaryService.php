@@ -70,26 +70,27 @@ class SalaryService
 
         $totalWorkDays = $presences->count();
         $totalEffectiveHours = 0;
-        $totalPenaltyAmount = 0;
+        $totalGrossHours = 0;
+        $totalPenaltyHours = 0;
 
         foreach ($presences as $presence) {
-            // 1. Total jam efektif kerja
-            $effectiveHours = $presence->calculateEffectiveWorkingTime();
-            $totalEffectiveHours += $effectiveHours;
+            $grossHours = $presence->shiftStore?->duration ?? 8.0;
+            $penaltyHours = $presence->calculateTotalPenalty();
+            
+            // Capped agar denda tidak melebihi jam shift
+            $actualPenaltyHours = min($grossHours, $penaltyHours);
+            $effectiveHours = $grossHours - $actualPenaltyHours;
 
-            // 2. Potongan denda harian
-            if (is_null($presence->check_out)) {
-                // Denda flat jika tidak check-out
-                $totalPenaltyAmount += $setting->no_checkout_penalty;
-            } else {
-                // Denda jam terlambat check-in + cepat pulang
-                $penaltyHours = $presence->calculateTotalPenalty();
-                $totalPenaltyAmount += $penaltyHours * $setting->late_penalty_per_hour;
-            }
+            $totalGrossHours += $grossHours;
+            $totalPenaltyHours += $actualPenaltyHours;
+            $totalEffectiveHours += $effectiveHours;
         }
 
-        // Base salary dihitung dari: rate per jam x total jam efektif kerja
-        $totalBaseSalary = $ratePerHour * $totalEffectiveHours;
+        // Base salary gross: rate per jam x total jam kotor
+        $totalBaseSalary = $ratePerHour * $totalGrossHours;
+
+        // Denda keterlambatan secara nominal: rate per jam x total jam denda
+        $totalPenaltyAmount = $ratePerHour * $totalPenaltyHours;
 
         // Transport & meals tidak digunakan dalam rekap bulanan
         $allowances = [];

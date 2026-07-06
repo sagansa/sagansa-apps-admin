@@ -37,7 +37,6 @@ class InvoicePurchaseResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Invoice';
 
     protected static ?string $pluralLabel = 'Invoices';
 
@@ -89,7 +88,7 @@ class InvoicePurchaseResource extends Resource
         }
 
         return $table
-            ->query($invoicePurchases)
+            ->query($invoicePurchases->with(['paymentReceipts']))
             ->poll('60s')
             ->columns(
                 InvoicePurchaseTable::schema()
@@ -259,6 +258,7 @@ class InvoicePurchaseResource extends Resource
 
                                 $queryFinal = $query
                                     ->where('store_id', $storeId)
+                                    ->where('status', '4') // Hanya yang sudah approved oleh admin
                                     ->when($paymentTypeFilter, function ($query) use ($paymentTypeFilter) {
                                         $query->where('payment_type_id', $paymentTypeFilter);
                                     })

@@ -35,7 +35,6 @@ class ReadinessResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Personal Data';
 
     protected static ?string $cluster = HRD::class;
 
@@ -105,11 +104,23 @@ class ReadinessResource extends Resource
             ->poll('60s')
             ->query($readinesses)
             ->columns([
-                ImageColumn::make('image_selfie')->visibility('public'),
+                ImageColumn::make('image_selfie')
+                    ->disk(null)
+                    ->visibility('public')
+                    ->state(fn($record) => ImageHelper::getImageUrl($record->image_selfie))
+                    ->url(fn($record) => ImageHelper::getImageUrl($record->image_selfie)),
 
-                ImageColumn::make('left_hand')->visibility('public'),
+                ImageColumn::make('left_hand')
+                    ->disk(null)
+                    ->visibility('public')
+                    ->state(fn($record) => ImageHelper::getImageUrl($record->left_hand))
+                    ->url(fn($record) => ImageHelper::getImageUrl($record->left_hand)),
 
-                ImageColumn::make('right_hand')->visibility('public'),
+                ImageColumn::make('right_hand')
+                    ->disk(null)
+                    ->visibility('public')
+                    ->state(fn($record) => ImageHelper::getImageUrl($record->right_hand))
+                    ->url(fn($record) => ImageHelper::getImageUrl($record->right_hand)),
 
                 StatusColumn::make('status'),
 

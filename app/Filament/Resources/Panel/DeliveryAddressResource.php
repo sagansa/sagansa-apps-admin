@@ -26,7 +26,6 @@ class DeliveryAddressResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Sales';
 
     protected static ?string $pluralLabel = 'Delivery Address';
 

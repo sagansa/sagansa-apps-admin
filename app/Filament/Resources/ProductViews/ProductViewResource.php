@@ -16,7 +16,7 @@ class ProductViewResource extends Resource
     protected static ?string $model = ProductView::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-eye';
-    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Persediaan';
     protected static ?string $modelLabel = 'Product View';
     protected static ?string $pluralModelLabel = 'Product Views';
 

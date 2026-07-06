@@ -32,7 +32,6 @@ class MovementAssetResultResource extends Resource
 
     protected static ?string $cluster = Asset::class;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Movement';
 
     public static function getModelLabel(): string
     {

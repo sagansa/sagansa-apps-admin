@@ -26,7 +26,6 @@ class MonthlySalaryResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Salaries';
 
     protected static ?string $pluralLabel = 'Monthly Salaries';
 
