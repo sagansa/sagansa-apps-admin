@@ -14,6 +14,7 @@ use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Group;
@@ -171,6 +172,26 @@ class ProductResource extends Resource
                                 ActiveStatusSelect::make('remaining')
                                     ->label('Status Stok')
                                     ->default('2'),
+                            ])
+                            ->collapsible(),
+
+                        Section::make('Aset')
+                            ->icon('heroicon-o-cube')
+                            ->schema([
+                                Toggle::make('is_asset')
+                                    ->label('Produk ini adalah aset')
+                                    ->helperText('Bila aktif, produk akan muncul di daftar product-picker modul Manajemen Aset dan otomatis dibuatkan instance aset saat dibeli via procurement.')
+                                    ->default(false)
+                                    ->live(),
+
+                                Select::make('asset_category_id')
+                                    ->label('Kategori Aset')
+                                    ->relationship('assetCategory', 'name')
+                                    ->preload()
+                                    ->searchable()
+                                    ->required(fn (callable $get) => (bool) $get('is_asset'))
+                                    ->hidden(fn (callable $get) => !$get('is_asset'))
+                                    ->helperText('Menentukan frekuensi pemeriksaan & checklist baku.'),
                             ])
                             ->collapsible(),
 

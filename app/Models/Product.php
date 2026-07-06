@@ -36,7 +36,16 @@ class Product extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
+            'is_asset' => 'boolean',
         ];
+    }
+
+    /**
+     * Kategori aset (jika produk ditandai sebagai aset).
+     */
+    public function assetCategory()
+    {
+        return $this->belongsTo(AssetCategory::class);
     }
 
     public function user()
