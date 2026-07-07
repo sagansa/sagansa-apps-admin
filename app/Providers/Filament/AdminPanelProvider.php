@@ -134,6 +134,20 @@ class AdminPanelProvider extends PanelProvider
             PanelsRenderHook::HEAD_END,
             fn (): HtmlString => new HtmlString(<<<'CSS'
             <style>
+                /* Saat sidebar desktop dibuka, .fi-main-ctn (width:100vw) bisa
+                   melebihi ruang tersisa (viewport - sidebar) sehingga sisi kanan
+                   tabel terpotong oleh overflow-x:clip pada .fi-layout. min-width:0
+                   memungkinkan flex item menyusut mengikuti lebar sidebar yang
+                   terbuka, lalu .fi-ta-content-ctn (overflow-x:auto) menampilkan
+                   scrollbar horizontal alih-alih memotong kolom. */
+                .fi-main-ctn,
+                .fi-main,
+                .fi-page,
+                .fi-page-main,
+                .fi-page-content {
+                    min-width: 0;
+                }
+
                 @media (max-width: 639.98px) {
                     .fi-ta-table.fi-ta-table-stacked-on-mobile > tbody > tr > .fi-ta-cell:not(.fi-ta-selection-cell):not(:has(.fi-ta-actions)) {
                         display: flex !important;
