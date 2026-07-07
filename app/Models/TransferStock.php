@@ -13,6 +13,11 @@ class TransferStock extends Model
     protected $connection = 'mysql';
     use HasFactory;
 
+    const STATUS_BELUM_DIPERIKSA = 1;
+    const STATUS_VALID = 2;
+    const STATUS_DIPERBAIKI = 3;
+    const STATUS_PERIKSA_ULANG = 4;
+
     protected $guarded = [];
 
     public function storeFrom()

@@ -130,26 +130,38 @@ class InvoicePurchaseResource extends Resource
                     \Filament\Actions\Action::make('updateInvoiceStatus')
                         ->label('Ubah Status')
                         ->icon('heroicon-o-pencil-square')
-                        ->visible(fn () => Auth::user()->hasRole('admin'))
+                        ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('staff'))
                         ->fillForm(fn (InvoicePurchase $record): array => [
                             'payment_status' => (string) $record->payment_status,
                             'order_status' => (string) $record->order_status,
                         ])
-                        ->form([
-                            Select::make('payment_status')
-                                ->label('Payment Status')
-                                ->required()
-                                ->options(static::getPaymentStatusOptions()),
-                            Select::make('order_status')
+                        ->form(function () {
+                            $fields = [];
+
+                            if (Auth::user()->hasRole('admin')) {
+                                $fields[] = Select::make('payment_status')
+                                    ->label('Payment Status')
+                                    ->required()
+                                    ->options(static::getPaymentStatusOptions());
+                            }
+
+                            $fields[] = Select::make('order_status')
                                 ->label('Order Status')
                                 ->required()
-                                ->options(static::getOrderStatusOptions()),
-                        ])
+                                ->options(static::getOrderStatusOptions());
+
+                            return $fields;
+                        })
                         ->action(function (InvoicePurchase $record, array $data): void {
-                            $record->update([
-                                'payment_status' => $data['payment_status'],
-                                'order_status' => $data['order_status'],
-                            ]);
+                            $updateData = [];
+
+                            if (Auth::user()->hasRole('admin')) {
+                                $updateData['payment_status'] = $data['payment_status'];
+                            }
+
+                            $updateData['order_status'] = $data['order_status'];
+
+                            $record->update($updateData);
                         }),
                 ])
             ])

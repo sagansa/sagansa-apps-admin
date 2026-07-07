@@ -14,6 +14,7 @@ use App\Filament\Forms\Notes;
 use App\Filament\Forms\StatusSelectInput;
 use App\Filament\Forms\StoreSelect;
 use Filament\Tables;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use App\Models\TransferStock;
@@ -78,7 +79,8 @@ class TransferStockResource extends Resource
                             titleAttribute: 'nickname',
                             modifyQueryUsing: fn (Builder $query) => $query->where('status', '<>', 8)->orderBy('name', 'asc'),)
                         ->preload()
-                        ->reactive(),
+                        ->reactive()
+                        ->rules(fn ($get) => ['different:to_store_id']),
 
                     StoreSelect::make('to_store_id')
                         ->required()
@@ -93,23 +95,17 @@ class TransferStockResource extends Resource
 
                     BaseSelect::make('received_by_id')
                         ->relationship('receivedBy', 'name', fn (Builder $query) => $query
-                            ->whereHas('roles', fn (Builder $query) => $query
-                                ->where('name', 'staff') || $query
-                                ->where('name', 'supervisor')))
+                            ->whereHas('roles', fn (Builder $q) => $q
+                                ->whereIn('name', ['staff', 'supervisor'])))
                         ->searchable(),
 
-                    // BaseSelect::make('sent_by_id')
-                    //     ->relationship('sentBy', 'name', fn (Builder $query) => $query
-                    //         ->whereHas('roles', fn (Builder $query) => $query
-                    //             ->where('name', 'staff') || $query
-                    //             ->where('name', 'supervisor')))
-                    //     ->searchable(),
                 ]),
             ]),
 
             Section::make()->schema([
                 Grid::make(['default' => 1])->schema([
                     Repeater::make('productTransferStocks')
+                        ->relationship()
                         ->schema([
                             Select::make('product_id')
                                 ->label('Product')
@@ -151,6 +147,7 @@ class TransferStockResource extends Resource
         }
 
         return $table
+            ->query($transferStocks)
             ->poll('60s')
             ->columns([
                 ImageOpenUrlColumn::make('image'),
@@ -179,7 +176,25 @@ class TransferStockResource extends Resource
 
 
             ])
-            ->filters([])
+            ->filters([
+                SelectFilter::make('from_store_id')
+                    ->label('Store Asal')
+                    ->relationship('storeFrom', 'nickname')
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('to_store_id')
+                    ->label('Store Tujuan')
+                    ->relationship('storeTo', 'nickname')
+                    ->searchable()
+                    ->preload(),
+                SelectFilter::make('status')
+                    ->options([
+                        '1' => 'belum diperiksa',
+                        '2' => 'valid',
+                        '3' => 'diperbaiki',
+                        '4' => 'periksa ulang',
+                    ]),
+            ])
             ->actions([
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
@@ -191,7 +206,7 @@ class TransferStockResource extends Resource
                     \Filament\Actions\DeleteBulkAction::make(),
                     ValidBulkAction::make('setStatusToValid')
                         ->action(function (Collection $records) {
-                            TransferStock::whereIn('id', $records->pluck('id'))->update(['status' => 2]);
+                            TransferStock::whereIn('id', $records->pluck('id'))->update(['status' => TransferStock::STATUS_VALID]);
                         }),
                 ]),
             ])
