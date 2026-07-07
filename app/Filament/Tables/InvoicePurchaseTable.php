@@ -20,63 +20,56 @@ class InvoicePurchaseTable
     {
         return [
             // =========================================================
-            // ROW UTAMA — Split horizontal. Filament otomatis render
-            // sebagai card vertikal di mobile.
+            // ROW UTAMA — Split dengan ->from('md'):
+            //   • di bawah md (mobile) -> otomatis stack VERTIKAL (flex-col),
+            //     tidak ada horizontal overflow.
+            //   • di md ke atas (desktop) -> horizontal split seperti tabel.
             // =========================================================
             Split::make([
-                // Image square kecil — mobile only
-                ImageOpenUrlColumn::make('image')
-                    ->visibility('public')
-                    ->url(fn (InvoicePurchase $record) => PublicStorageUrl::from($record->image))
-                    ->grow(false)
-                    ->hiddenFrom('md'),
 
-                // Image normal — desktop only
-                ImageOpenUrlColumn::make('image')
-                    ->visibility('public')
-                    ->url(fn (InvoicePurchase $record) => PublicStorageUrl::from($record->image))
-                    ->grow(false)
-                    ->visibleFrom('md'),
-
-                // Stack info utama (desktop): supplier + store·date
-                Stack::make([
-                    TextColumn::make('supplier.name')
-                        ->weight('bold')
-                        ->searchable(),
-                    Split::make([
-                        TextColumn::make('store.nickname')
-                            ->color('gray')
-                            ->size('sm')
+                // ---- KIRI: image + identitas supplier ----
+                Split::make([
+                    ImageOpenUrlColumn::make('image')
+                        ->visibility('public')
+                        ->url(fn (InvoicePurchase $record) => PublicStorageUrl::from($record->image))
+                        ->grow(false),
+                    Stack::make([
+                        TextColumn::make('supplier.name')
+                            ->weight('bold')
                             ->searchable(),
-                        TextColumn::make('date')
-                            ->date('d M Y')
+                        TextColumn::make('mobile_subtitle')
+                            ->label('Store · Date')
+                            ->state(function (InvoicePurchase $record): string {
+                                $date = $record->date
+                                    ? Carbon::parse($record->date)->format('d M Y')
+                                    : '-';
+
+                                return sprintf(
+                                    '%s · %s',
+                                    $record->store?->nickname ?? '-',
+                                    $date,
+                                );
+                            })
                             ->color('gray')
-                            ->size('sm')
-                            ->searchable(),
-                    ])->grow(false),
-                ])->visibleFrom('md'),
+                            ->size('sm'),
+                        // Hanya tampil di desktop: baris terpisah untuk store & date
+                        Split::make([
+                            TextColumn::make('store.nickname')
+                                ->color('gray')
+                                ->size('sm')
+                                ->searchable(),
+                            TextColumn::make('date')
+                                ->date('d M Y')
+                                ->color('gray')
+                                ->size('sm')
+                                ->searchable(),
+                        ])
+                            ->grow(false)
+                            ->visibleFrom('md'),
+                    ]),
+                ])->grow(true),
 
-                // Stack info utama (mobile): supplier + subtitle 1 baris
-                Stack::make([
-                    TextColumn::make('supplier.name')
-                        ->weight('bold')
-                        ->searchable(),
-                    TextColumn::make('mobile_subtitle')
-                        ->label('Store · Date')
-                        ->state(function (InvoicePurchase $record): string {
-                            $date = $record->date ? Carbon::parse($record->date)->format('d M Y') : '-';
-
-                            return sprintf(
-                                '%s · %s',
-                                $record->store?->nickname ?? '-',
-                                $date,
-                            );
-                        })
-                        ->color('gray')
-                        ->size('sm'),
-                ])->hiddenFrom('md'),
-
-                // Stack kanan: total + 2 badge status
+                // ---- KANAN: total + badges ----
                 Stack::make([
                     CurrencyColumn::make('total_price')
                         ->searchable()
@@ -114,8 +107,9 @@ class InvoicePurchaseTable
                                 default => $state,
                             }),
                     ])->grow(false),
-                ])->alignment('end'),
-            ]),
+                ])
+                    ->alignment('end'),
+            ])->from('md'),
 
             // =========================================================
             // PANEL COLLAPSIBLE: detail supplier lengkap + rincian produk
