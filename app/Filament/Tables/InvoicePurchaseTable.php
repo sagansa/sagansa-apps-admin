@@ -6,6 +6,7 @@ use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Models\InvoicePurchase;
 use App\Support\PublicStorageUrl;
+use Carbon\Carbon;
 use Filament\Tables\Columns\Layout\Panel;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
@@ -63,10 +64,12 @@ class InvoicePurchaseTable
                     TextColumn::make('mobile_subtitle')
                         ->label('Store · Date')
                         ->state(function (InvoicePurchase $record): string {
+                            $date = $record->date ? Carbon::parse($record->date)->format('d M Y') : '-';
+
                             return sprintf(
                                 '%s · %s',
                                 $record->store?->nickname ?? '-',
-                                $record->date?->format('d M Y') ?? '-',
+                                $date,
                             );
                         })
                         ->color('gray')
