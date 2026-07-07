@@ -14,6 +14,9 @@ use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Support\HtmlString;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -120,5 +123,38 @@ class AdminPanelProvider extends PanelProvider
             ->plugins([
                 FilamentShieldPlugin::make('super_admin'),
             ]);
+
+        // Override tampilan stacked-on-mobile: label & value di baris yang sama
+        // (label kiri, value kanan, justify-between) untuk hemat tinggi baris.
+        // Hanya berlaku di bawah breakpoint sm (mobile), desktop tetap tabel normal.
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::HEAD_END,
+            fn (): HtmlString => new HtmlString(<<<'CSS'
+            <style>
+                @media (max-width: 639.98px) {
+                    .fi-ta-table-stacked-on-mobile tbody > tr > .fi-ta-cell:not(.fi-ta-selection-cell):not(:has(.fi-ta-actions)) {
+                        display: flex !important;
+                        align-items: baseline;
+                        gap: 0.75rem;
+                        padding-top: 0.4rem;
+                        padding-bottom: 0.4rem;
+                    }
+                    .fi-ta-table-stacked-on-mobile tbody > tr > .fi-ta-cell > .fi-ta-cell-label {
+                        padding-top: 0;
+                        flex-shrink: 0;
+                        min-width: 7rem;
+                        font-weight: 500;
+                    }
+                    .fi-ta-table-stacked-on-mobile tbody > tr > .fi-ta-cell > .fi-ta-cell-content {
+                        flex: 1 1 0%;
+                        text-align: right;
+                    }
+                    .fi-ta-table-stacked-on-mobile tbody > tr > .fi-ta-cell > .fi-ta-cell-content > * {
+                        justify-content: flex-end;
+                    }
+                }
+            </style>
+            CSS),
+        );
     }
 }
