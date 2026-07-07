@@ -588,6 +588,21 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(TransferCard::class, 'received_by_id');
     }
 
+    public function canAccessPanel(\Filament\Panel $panel): bool
+    {
+        if ($this->hasRole('super_admin')) {
+            return true;
+        }
+
+        $forceMobile = \App\Models\ServiceSetting::getValue('force_mobile_only', '1');
+
+        if ($forceMobile === '1') {
+            return $this->hasRole('admin');
+        }
+
+        return true;
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class);

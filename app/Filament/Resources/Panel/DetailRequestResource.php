@@ -262,7 +262,7 @@ class DetailRequestResource extends Resource
                 ]),
             ])
             ->headerActions([
-                \Filament\Tables\Actions\Action::make('cleanUpStale')
+                Action::make('cleanUpStale')
                     ->label('Bersihkan Request Usang (> 1 Bulan)')
                     ->icon('heroicon-o-trash')
                     ->color('danger')

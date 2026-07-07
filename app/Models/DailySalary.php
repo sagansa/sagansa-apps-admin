@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ResolvesCreatedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,7 @@ class DailySalary extends Model
 
     protected $connection = 'mysql';
     use HasFactory;
+    use ResolvesCreatedBy;
 
     protected $guarded = [];
 
@@ -54,20 +56,13 @@ class DailySalary extends Model
         return $this->belongsToMany(PaymentReceipt::class);
     }
 
-    public function getDailySalaryNameAttribute()
+    public function getDailySalaryNameAttribute(): string
     {
-        $creatorName = 'Unknown';
-        if ($this->relationLoaded('createdBy') && $this->createdBy) {
-            $creatorName = $this->createdBy->name;
-        } elseif ($this->created_by_id) {
-            if (!is_numeric($this->created_by_id)) {
-                $user = \App\Models\User::withTrashed()->where('uuid', $this->created_by_id)->first();
-                if ($user) $creatorName = $user->name;
-            } else {
-                $user = \App\Models\User::withTrashed()->find($this->created_by_id);
-                if ($user) $creatorName = $user->name;
-            }
-        }
+        $creatorName = $this->relationLoaded('createdBy') && $this->createdBy
+            ? $this->createdBy->name
+            : self::findCreatorName($this->created_by_id);
+
+        $creatorName = $creatorName !== '' ? $creatorName : 'Unknown';
 
         return $creatorName .
             ' | ' . $this->date .
@@ -75,10 +70,21 @@ class DailySalary extends Model
             ' | Rp ' . number_format($this->amount, 0, ',', '.');
     }
 
-    public function scopeForPaymentType(Builder $query, $paymentTypeId)
+    /**
+     * Scope record daily salary berdasarkan payment_type_id DAN belum terikat
+     * ke payment receipt manapun.
+     *
+     * Versi sebelumnya salah merujuk kolom `payment_receipt_id` yang tidak ada
+     * di tabel daily_salaries (relasi via pivot) — akan throw SQL error.
+     * Sekarang memakai whereDoesntHave pivot. Tidak menambah filter status
+     * agar tidak mengubah behavior caller yang sudah ada
+     * (DailySalariesRelationManager memanggil scope ini).
+     */
+    public function scopeForPaymentType(Builder $query, $paymentTypeId = '1'): Builder
     {
-        return $query->where('payment_type_id', $paymentTypeId)
-            ->whereNull('payment_receipt_id')
+        return $query
+            ->where('payment_type_id', $paymentTypeId)
+            ->whereDoesntHave('paymentReceipts')
             ->orderBy('date', 'asc');
     }
 }

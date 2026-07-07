@@ -9,6 +9,7 @@ class ProductTransferStock extends Pivot
 {
 
     protected $connection = 'mysql';
+    protected $guarded = [];
     public $timestamps = false;
 
     public function transferStock(): BelongsTo

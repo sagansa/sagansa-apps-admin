@@ -20,6 +20,17 @@ class TransferStock extends Model
 
     protected $guarded = [];
 
+    protected $appends = ['image_url'];
+
+    public function getImageUrlAttribute()
+    {
+        $path = $this->attributes['image'] ?? null;
+        if (!$path) {
+            return null;
+        }
+        return url('storage/' . $path);
+    }
+
     public function storeFrom()
     {
         return $this->belongsTo(Store::class, 'from_store_id');

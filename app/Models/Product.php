@@ -212,4 +212,43 @@ class Product extends Model
                 ];
             });
     }
+
+    /**
+     * Versi batch dari getLatestPrices: ambil history harga N transaksi terakhir
+     * untuk banyak produk sekaligus dalam 1 query (menghindari N+1 saat dipanggil
+     * dalam loop per-detail-invoice).
+     *
+     * @param  list<int|string>  $productIds
+     * @return \Illuminate\Support\Collection<int, \Illuminate\Support\Collection>  keyed by product_id
+     */
+    public static function latestPricesForProducts(array $productIds, int $limit = 5): \Illuminate\Support\Collection
+    {
+        $productIds = array_values(array_filter($productIds));
+        if (empty($productIds)) {
+            return collect();
+        }
+
+        // Ambil semua baris detail untuk produk-produk tsb, urutkan per produk,
+        // lalu kelompokkan & ambil $limit teratas per produk di sisi PHP.
+        $rows = DetailInvoice::query()
+            ->join('detail_requests', 'detail_invoices.detail_request_id', '=', 'detail_requests.id')
+            ->join('invoice_purchases', 'detail_invoices.invoice_purchase_id', '=', 'invoice_purchases.id')
+            ->whereIn('detail_requests.product_id', $productIds)
+            ->where('detail_invoices.quantity_product', '>', 0)
+            ->where('detail_invoices.subtotal_invoice', '>', 0)
+            ->orderByRaw('detail_requests.product_id, invoice_purchases.date DESC, detail_invoices.created_at DESC')
+            ->get([
+                'detail_requests.product_id',
+                'detail_invoices.subtotal_invoice',
+                'detail_invoices.quantity_product',
+                'invoice_purchases.date',
+            ]);
+
+        return $rows->groupBy('product_id')->map(function ($group) use ($limit) {
+            return $group->take($limit)->map(fn ($detail) => [
+                'price' => (float) $detail->subtotal_invoice / (float) $detail->quantity_product,
+                'date'  => $detail->date,
+            ])->values();
+        });
+    }
 }

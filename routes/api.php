@@ -1,9 +1,6 @@
 <?php
 
-// use app\Http\Controllers\api\AuthController;
-// use App\Http\Controllers\api\PresenceController;
-// use App\Http\Controllers\api\LeaveController;
-// use App\Http\Controllers\api\SalaryController;
+use App\Http\Controllers\Api\TransferStockController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -11,15 +8,9 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::get('/debug-salary', function () {
-    $salaries = \App\Models\DailySalary::where('payment_type_id', '1')
-        ->where('status', '3')
-        ->get();
-    
-    $users = $salaries->pluck('created_by_id')->unique();
-    return response()->json([
-        'total_salaries' => $salaries->count(),
-        'unique_creators' => $users,
-        'sutaryo_guess' => \App\Models\User::where('name', 'like', '%sutaryo%')->first(),
-    ]);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/transfer-stocks/products', [TransferStockController::class, 'products']);
+    Route::get('/transfer-stocks', [TransferStockController::class, 'index']);
+    Route::post('/transfer-stocks', [TransferStockController::class, 'store']);
+    Route::get('/transfer-stocks/{transferStock}', [TransferStockController::class, 'show']);
 });
