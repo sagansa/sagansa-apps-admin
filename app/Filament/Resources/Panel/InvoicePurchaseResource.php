@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Panel;
 
+use App\Enum\PaymentType;
 use App\Filament\Clusters\Purchases;
 use App\Filament\Filters\SelectPaymentTypeFilter;
 use App\Filament\Forms\CurrencyInput;
@@ -15,11 +16,12 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use App\Models\InvoicePurchase;
 use Filament\Resources\Resource;
-use Filament\Forms\Components\Select;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\TextInput;
+use App\Filament\Forms\Components\Select;
+use App\Filament\Schemas\Components\Section;
+use App\Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\Panel\InvoicePurchaseResource\Pages;
+use App\Filament\Resources\Panel\PaymentReceiptResource;
 use App\Filament\Tables\InvoicePurchaseTable;
 use App\Models\DetailRequest;
 use Filament\Schemas\Components\Group;
@@ -127,6 +129,19 @@ class InvoicePurchaseResource extends Resource
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
                     \Filament\Actions\ViewAction::make(),
+                    \Filament\Actions\Action::make('createPaymentReceipt')
+                        ->label('Payment Receipt')
+                        ->icon('heroicon-o-banknotes')
+                        ->visible(fn (InvoicePurchase $record): bool =>
+                            $record->payment_status === '1'
+                            && $record->payment_type_id === PaymentType::Transfer->value
+                            && $record->paymentReceipts()->doesntExist()
+                        )
+                        ->url(fn (InvoicePurchase $record): string =>
+                            PaymentReceiptResource::getUrl('create', [
+                                'invoice_id' => $record->id,
+                            ])
+                        ),
                     \Filament\Actions\Action::make('updateInvoiceStatus')
                         ->label('Ubah Status')
                         ->icon('heroicon-o-pencil-square')
