@@ -6,10 +6,6 @@ use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Models\InvoicePurchase;
 use App\Support\PublicStorageUrl;
-use Carbon\Carbon;
-use Filament\Tables\Columns\Layout\Panel;
-use Filament\Tables\Columns\Layout\Split;
-use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Auth;
@@ -20,152 +16,95 @@ class InvoicePurchaseTable
     {
         return [
             // =========================================================
-            // ROW UTAMA — Split dengan ->from('md'):
-            //   • di bawah md (mobile) -> otomatis stack VERTIKAL (flex-col),
-            //     tidak ada horizontal overflow.
-            //   • di md ke atas (desktop) -> horizontal split seperti tabel.
+            // Desktop: tabel ringkas dengan kolom-kolom proper.
+            // Mobile: $table->stackedOnMobile() (di Resource) render
+            // tiap baris jadi card vertikal otomatis. Kolom dengan
+            // ->hiddenFrom('md') hanya tampil di desktop.
             // =========================================================
-            Split::make([
 
-                // ---- KIRI: image + identitas supplier ----
-                Split::make([
-                    ImageOpenUrlColumn::make('image')
-                        ->visibility('public')
-                        ->url(fn (InvoicePurchase $record) => PublicStorageUrl::from($record->image))
-                        ->grow(false),
-                    Stack::make([
-                        TextColumn::make('supplier.name')
-                            ->weight('bold')
-                            ->searchable(),
-                        TextColumn::make('mobile_subtitle')
-                            ->label('Store · Date')
-                            ->state(function (InvoicePurchase $record): string {
-                                $date = $record->date
-                                    ? Carbon::parse($record->date)->format('d M Y')
-                                    : '-';
+            ImageOpenUrlColumn::make('image')
+                ->visibility('public')
+                ->url(fn (InvoicePurchase $record) => PublicStorageUrl::from($record->image)),
 
-                                return sprintf(
-                                    '%s · %s',
-                                    $record->store?->nickname ?? '-',
-                                    $date,
-                                );
-                            })
-                            ->color('gray')
-                            ->size('sm'),
-                        // Hanya tampil di desktop: baris terpisah untuk store & date
-                        Split::make([
-                            TextColumn::make('store.nickname')
-                                ->color('gray')
-                                ->size('sm')
-                                ->searchable(),
-                            TextColumn::make('date')
-                                ->date('d M Y')
-                                ->color('gray')
-                                ->size('sm')
-                                ->searchable(),
-                        ])
-                            ->grow(false)
-                            ->visibleFrom('md'),
-                    ]),
-                ])->grow(true),
+            TextColumn::make('date')
+                ->date('d M Y')
+                ->sortable()
+                ->searchable()
+                ->toggleable(),
 
-                // ---- KANAN: total + badges ----
-                Stack::make([
-                    CurrencyColumn::make('total_price')
-                        ->searchable()
-                        ->summarize(Sum::make()
-                            ->numeric(thousandsSeparator: '.')
-                            ->label('')
-                            ->prefix('Rp ')),
-                    Split::make([
-                        TextColumn::make('payment_status')
-                            ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                '1' => 'warning',
-                                '2' => 'success',
-                                '3' => 'danger',
-                                default => $state,
-                            })
-                            ->formatStateUsing(fn (string $state): string => match ($state) {
-                                '1' => 'belum dibayar',
-                                '2' => 'sudah dibayar',
-                                '3' => 'tidak valid',
-                                default => $state,
-                            }),
-                        TextColumn::make('order_status')
-                            ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                '1' => 'warning',
-                                '2' => 'success',
-                                '3' => 'danger',
-                                default => $state,
-                            })
-                            ->formatStateUsing(fn (string $state): string => match ($state) {
-                                '1' => 'belum diterima',
-                                '2' => 'sudah diterima',
-                                '3' => 'dikembalikan',
-                                default => $state,
-                            }),
-                    ])->grow(false),
-                ])
-                    ->alignment('end'),
-            ])->from('md'),
+            // Supplier — hanya nama (1 baris). Info bank/no rek
+            // dipindah ke halaman View untuk hindari baris tinggi.
+            TextColumn::make('supplier.name')
+                ->label('Supplier')
+                ->searchable()
+                ->toggleable(),
 
-            // =========================================================
-            // PANEL COLLAPSIBLE: detail supplier lengkap + rincian produk
-            // =========================================================
-            Panel::make([
-                Stack::make([
-                    TextColumn::make('supplier_full_info')
-                        ->label('Supplier')
-                        ->html()
-                        ->getStateUsing(function (InvoicePurchase $record): string {
-                            $parts = collect([
-                                $record->supplier?->name,
-                                $record->supplier?->bank?->name ? 'Bank: ' . $record->supplier->bank->name : null,
-                                $record->supplier?->bank_account_name ? 'Nama Rek: ' . $record->supplier->bank_account_name : null,
-                                $record->supplier?->bank_account_no ? 'No Rek: ' . $record->supplier->bank_account_no : null,
-                            ])->filter();
+            // Detail produk ringkas — 1 baris ("3 produk" atau nama pertama).
+            // Rincian lengkap ada di halaman View.
+            TextColumn::make('detail_summary')
+                ->label('Items')
+                ->state(function (InvoicePurchase $record): string {
+                    $count = $record->detailInvoices->count();
 
-                            return $parts->isEmpty()
-                                ? '<em>Tidak ada info supplier.</em>'
-                                : $parts->map(fn ($line) => e($line))->implode(' · ');
-                        }),
-                    TextColumn::make('detail_products_full')
-                        ->label('Rincian Produk')
-                        ->html()
-                        ->getStateUsing(function (InvoicePurchase $record): string {
-                            if ($record->detailInvoices->isEmpty()) {
-                                return '<em>Tidak ada rincian produk.</em>';
-                            }
+                    if ($count === 0) {
+                        return '—';
+                    }
 
-                            return $record->detailInvoices->map(function ($detail) {
-                                $product = $detail->detailRequest?->product;
-                                $qty = number_format($detail->quantity_product ?? 0, 0, ',', '.');
-                                $unit = $product?->unit?->unit ?? '';
-                                $subtotal = number_format($detail->subtotal_invoice ?? 0, 0, ',', '.');
+                    $first = $record->detailInvoices->first();
+                    $firstName = $first?->detailRequest?->product?->name ?? 'Item';
 
-                                return sprintf(
-                                    '%s - %s %s - Rp %s',
-                                    e($product?->name ?? '-'),
-                                    $qty,
-                                    e($unit),
-                                    $subtotal,
-                                );
-                            })->implode('<br>');
-                        }),
-                ]),
-            ])->collapsible(),
+                    return $count === 1
+                        ? $firstName
+                        : "{$firstName} +".($count - 1).' lainnya';
+                })
+                ->toggleable(),
 
-            // =========================================================
-            // Kolom tambahan toggleable (hidden by default)
-            // =========================================================
+            CurrencyColumn::make('total_price')
+                ->searchable()
+                ->summarize(Sum::make()
+                    ->numeric(thousandsSeparator: '.')
+                    ->label('')
+                    ->prefix('Rp ')),
+
+            TextColumn::make('payment_status')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    '1' => 'warning',
+                    '2' => 'success',
+                    '3' => 'danger',
+                    default => $state,
+                })
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    '1' => 'belum dibayar',
+                    '2' => 'sudah dibayar',
+                    '3' => 'tidak valid',
+                    default => $state,
+                }),
+
+            TextColumn::make('order_status')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    '1' => 'warning',
+                    '2' => 'success',
+                    '3' => 'danger',
+                    default => $state,
+                })
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    '1' => 'belum diterima',
+                    '2' => 'sudah diterima',
+                    '3' => 'dikembalikan',
+                    default => $state,
+                }),
+
+            // Kolom sekunder — hanya tampil di desktop (hidden on mobile).
             TextColumn::make('paymentType.name')
-                ->toggleable(isToggledHiddenByDefault: true),
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->hiddenFrom('md'),
 
             TextColumn::make('createdBy.name')
                 ->hidden(fn () => Auth::user()?->hasRole('staff') ?? false)
-                ->toggleable(isToggledHiddenByDefault: true),
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->hiddenFrom('md'),
 
             TextColumn::make('payment_receipt_status')
                 ->label('Payment Receipt')
@@ -176,7 +115,8 @@ class InvoicePurchaseTable
                 ->color(fn (string $state): string => match ($state) {
                     'Sudah Dibayar' => 'success',
                     default => 'warning',
-                }),
+                })
+                ->hiddenFrom('md'),
         ];
     }
 }

@@ -16,9 +16,9 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use App\Models\InvoicePurchase;
 use Filament\Resources\Resource;
-use App\Filament\Forms\Components\Select;
-use App\Filament\Schemas\Components\Section;
-use App\Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Section;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\Panel\InvoicePurchaseResource\Pages;
 use App\Filament\Resources\Panel\PaymentReceiptResource;
@@ -92,6 +92,7 @@ class InvoicePurchaseResource extends Resource
         return $table
             ->query($invoicePurchases->with(['paymentReceipts']))
             ->poll('60s')
+            ->stackedOnMobile()
             ->columns(
                 InvoicePurchaseTable::schema()
             )
