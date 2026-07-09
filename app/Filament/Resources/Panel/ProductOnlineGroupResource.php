@@ -7,6 +7,7 @@ use App\Filament\Forms\ImageInput;
 use Filament\Tables;
 use App\Models\ProductOnlineGroup;
 use App\Models\Product;
+use App\Models\ProductImage;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
@@ -22,7 +23,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\Panel\ProductOnlineGroupResource\Pages;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
@@ -66,22 +66,44 @@ class ProductOnlineGroupResource extends Resource
                             ->schema([
                                 Select::make('product_image_id')
                                     ->label('Gambar')
-                                    ->options(function (Get $get, $record) {
-                                        $id = $record?->id ?? request()->route('record');
-                                        if (!$id) return ['—' => 'Simpan group terlebih dahulu'];
+                                    ->options(function ($record, $livewire) {
+                                        $productIds = [];
 
-                                        $group = ProductOnlineGroup::with('items.product.images')->find($id);
-                                        if (!$group || $group->items->isEmpty())
-                                            return ['—' => 'Tidak ada produk dalam group'];
-
-                                        $options = [];
-                                        foreach ($group->items as $item) {
-                                            foreach ($item->product->images as $img) {
-                                                $filename = basename($img->getRawOriginal('image_url') ?? '');
-                                                $options[$img->id] = "#{$img->id} {$item->product->name}" . ($filename ? " ({$filename})" : '');
+                                        $dataItems = data_get($livewire, 'data.items');
+                                        if (!empty($dataItems) && is_array($dataItems)) {
+                                            foreach ($dataItems as $item) {
+                                                if (!empty($item['product_id'])) {
+                                                    $productIds[] = $item['product_id'];
+                                                }
                                             }
                                         }
-                                        return $options ?: ['—' => 'Tidak ada gambar tersedia'];
+
+                                        if (empty($productIds)) {
+                                            $id = $record?->id ?? request()->route('record');
+                                            if ($id) {
+                                                $group = ProductOnlineGroup::with('items')->find($id);
+                                                if ($group) {
+                                                    $productIds = $group->items->pluck('product_id')->toArray();
+                                                }
+                                            }
+                                        }
+
+                                        if (empty($productIds)) {
+                                            return ['—' => 'Pilih produk terlebih dahulu'];
+                                        }
+
+                                        $images = ProductImage::whereIn('product_id', $productIds)->get();
+                                        if ($images->isEmpty()) {
+                                            return ['—' => 'Tidak ada gambar tersedia'];
+                                        }
+
+                                        $options = [];
+                                        foreach ($images as $img) {
+                                            $filename = basename($img->getRawOriginal('image_url') ?? '');
+                                            $productName = $img->product?->name ?? 'Produk';
+                                            $options[$img->id] = "#{$img->id} {$productName}" . ($filename ? " ({$filename})" : '');
+                                        }
+                                        return $options;
                                     })
                                     ->searchable()
                                     ->required(),
