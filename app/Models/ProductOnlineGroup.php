@@ -58,7 +58,7 @@ class ProductOnlineGroup extends Model
 
     public function products()
     {
-        return $this->belongsToMany(Product::class, 'product_online_group_items');
+        return $this->belongsToMany(Product::class, 'product_online_group_items')->withTimestamps();
     }
 
     public function onlineCategory()

@@ -22,6 +22,7 @@ use Filament\Tables\Columns\IconColumn;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\Panel\ProductOnlineGroupResource\Pages;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Repeater;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Str;
@@ -67,24 +68,14 @@ class ProductOnlineGroupResource extends Resource
                                 Select::make('product_image_id')
                                     ->label('Gambar')
                                     ->options(function ($record, $livewire) {
-                                        $productIds = [];
-
-                                        $dataItems = data_get($livewire, 'data.items');
-                                        if (!empty($dataItems) && is_array($dataItems)) {
-                                            foreach ($dataItems as $item) {
-                                                if (!empty($item['product_id'])) {
-                                                    $productIds[] = $item['product_id'];
-                                                }
-                                            }
-                                        }
+                                        $productIds = data_get($livewire, 'data.products', []);
 
                                         if (empty($productIds)) {
                                             $id = $record?->id ?? request()->route('record');
                                             if ($id) {
-                                                $group = ProductOnlineGroup::with('items')->find($id);
-                                                if ($group) {
-                                                    $productIds = $group->items->pluck('product_id')->toArray();
-                                                }
+                                                $productIds = ProductOnlineGroup::where('id', $id)
+                                                    ->with('products:id')
+                                                    ->first()?->products?->pluck('id')->toArray() ?? [];
                                             }
                                         }
 
@@ -200,45 +191,33 @@ class ProductOnlineGroupResource extends Resource
 
                     Section::make('Produk Anggota')
                         ->icon('heroicon-o-cube')
-                        ->description('Pilih produk fisik yang tergabung dalam grup ini')
+                        ->description('Centang produk fisik yang tergabung dalam grup ini')
                         ->schema([
-                            Repeater::make('items')
-                                ->label('Produk Fisik')
-                                ->relationship('items')
-                                ->schema([
-                                    Select::make('product_id')
-                                        ->label('Produk')
-                                        ->required()
-                                        ->options(Product::query()->pluck('name', 'id'))
-                                        ->searchable()
-                                        ->preload()
-                                        ->native(false)
-                                        ->distinct()
-                                        ->rules([
-                                            function () {
-                                                return function (string $attribute, $value, \Closure $fail) {
-                                                    if (!$value) return;
+                            CheckboxList::make('products')
+                                ->label('')
+                                ->relationship('products', 'name')
+                                ->columns(4)
+                                ->rules([
+                                    function () {
+                                        return function (string $attribute, $value, \Closure $fail) {
+                                            if (empty($value)) return;
 
-                                                    $existing = \App\Models\ProductOnlineGroupItem::where('product_id', $value)
-                                                        ->whereHas('group', fn($q) => $q->whereNull('deleted_at'));
+                                            $existing = \App\Models\ProductOnlineGroupItem::whereIn('product_id', $value)
+                                                ->whereHas('group', fn($q) => $q->whereNull('deleted_at'));
 
-                                                    $recordId = request()?->route('record');
-                                                    if ($recordId) {
-                                                        $existing->where('product_online_group_id', '!=', $recordId);
-                                                    }
+                                            $recordId = request()?->route('record');
+                                            if ($recordId) {
+                                                $existing->where('product_online_group_id', '!=', $recordId);
+                                            }
 
-                                                    if ($existing->exists()) {
-                                                        $product = Product::find($value);
-                                                        $fail("Produk \"{$product?->name}\" sudah menjadi anggota grup lain.");
-                                                    }
-                                                };
-                                            },
-                                        ]),
-                                ])
-                                ->defaultItems(0)
-                                ->addActionLabel('Tambah Produk')
-                                ->collapsible()
-                                ->itemLabel(fn(array $state): ?string => isset($state['product_id']) ? Product::find($state['product_id'])?->name : null),
+                                            $conflicts = $existing->with('product:id,name')->get();
+                                            if ($conflicts->isNotEmpty()) {
+                                                $names = $conflicts->pluck('product.name')->implode(', ');
+                                                $fail("Produk sudah menjadi anggota grup lain: {$names}");
+                                            }
+                                        };
+                                    },
+                                ]),
                         ])
                         ->collapsible(),
                 ])
