@@ -79,7 +79,7 @@ class ProductResource extends Resource
                                     ->imageCropAspectRatio('1:1')
                                     ->imageResizeMode('cover'),
                             ])
-                            ->grid(4)
+                            ->grid(5)
                             ->orderColumn('order')
                             ->reorderable()
                             ->addActionLabel('Tambah Foto')
