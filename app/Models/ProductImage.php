@@ -16,23 +16,6 @@ class ProductImage extends Model
 
     protected $fillable = ['product_id', 'image_url', 'order'];
 
-    public static function boot()
-    {
-        parent::boot();
-
-        static::saved(function (ProductImage $image) {
-            if ($image->product) {
-                Product::syncImageFromRelation($image->product);
-            }
-        });
-
-        static::deleted(function (ProductImage $image) {
-            if ($image->product) {
-                Product::syncImageFromRelation($image->product);
-            }
-        });
-    }
-
     public function product()
     {
         return $this->belongsTo(Product::class);

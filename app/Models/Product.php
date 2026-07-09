@@ -182,17 +182,16 @@ class Product extends Model
                 $model->slug = Str::slug($model->name);
             }
         });
-    }
 
-    public static function syncImageFromRelation(Product $product): void
-    {
-        $firstImage = $product->images()->orderBy('order')->value('image_url');
+        static::saved(function ($product) {
+            $firstImage = $product->images()->orderBy('order')->value('image_url');
 
-        if ($product->getOriginal('image') !== $firstImage) {
-            Product::withoutTimestamps(fn () =>
-                Product::where('id', $product->id)->update(['image' => $firstImage])
-            );
-        }
+            if ($product->getOriginal('image') !== $firstImage) {
+                Product::withoutTimestamps(fn () =>
+                    Product::where('id', $product->id)->update(['image' => $firstImage])
+                );
+            }
+        });
     }
 
     public function getProductNameAttribute()
