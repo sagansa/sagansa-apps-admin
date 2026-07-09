@@ -24,9 +24,8 @@ class CreateProductOnlineGroup extends CreateRecord
 
         $record->products()->sync($data['selected_product_ids'] ?? []);
 
-        $selectedImageIds = json_decode($data['selected_image_ids'] ?? '[]', true) ?? [];
         $record->images()->delete();
-        foreach ($selectedImageIds as $order => $imageId) {
+        foreach (($data['selected_image_ids'] ?? []) as $order => $imageId) {
             $record->images()->create([
                 'product_image_id' => $imageId,
                 'order' => $order,

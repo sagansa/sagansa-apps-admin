@@ -61,9 +61,7 @@ class ProductOnlineGroupResource extends Resource
                     ->icon('heroicon-o-photo')
                     ->description('Centang gambar dari produk yang ingin ditampilkan di group ini')
                     ->schema([
-                        Hidden::make('selected_image_ids')
-                            ->formatStateUsing(fn ($state) => is_array($state) ? json_encode($state) : $state)
-                            ->dehydrateStateUsing(fn ($state) => is_string($state) ? json_decode($state, true) ?? [] : $state),
+                        Hidden::make('selected_image_ids'),
 
                         Placeholder::make('image_grid')
                             ->label('')
