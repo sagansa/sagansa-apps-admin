@@ -10,7 +10,6 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationGroup;
 use Filament\Pages;
-use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -44,10 +43,6 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-shopping-cart')
                     ->collapsible(),
                 NavigationGroup::make()
-                    ->label('Kas')
-                    ->icon('heroicon-o-banknotes')
-                    ->collapsible(),
-                NavigationGroup::make()
                     ->label('Persediaan')
                     ->icon('heroicon-o-cube')
                     ->collapsible(),
@@ -64,10 +59,6 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-truck')
                     ->collapsible(),
                 NavigationGroup::make()
-                    ->label('Utilitas')
-                    ->icon('heroicon-o-bolt')
-                    ->collapsible(),
-                NavigationGroup::make()
                     ->label('Sistem')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsible(),
@@ -75,7 +66,6 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->sidebarCollapsibleOnDesktop()
             ->collapsibleNavigationGroups()
-            ->subNavigationPosition(SubNavigationPosition::Top)
             ->id('admin')
             ->path('admin')
             ->login()

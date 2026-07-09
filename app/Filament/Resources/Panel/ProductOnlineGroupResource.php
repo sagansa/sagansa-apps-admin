@@ -175,28 +175,7 @@ class ProductOnlineGroupResource extends Resource
                                         ->orderBy('name')
                                         ->pluck('name', 'id');
                                 })
-                                ->columns(4)
-                                ->rules([
-                                    function () {
-                                        return function (string $attribute, $value, \Closure $fail) {
-                                            if (empty($value)) return;
-
-                                            $existing = \App\Models\ProductOnlineGroupItem::whereIn('product_id', $value)
-                                                ->whereHas('group', fn($q) => $q->whereNull('deleted_at'));
-
-                                            $recordId = request()?->route('record');
-                                            if ($recordId) {
-                                                $existing->where('product_online_group_id', '!=', $recordId);
-                                            }
-
-                                            $conflicts = $existing->with('product:id,name')->get();
-                                            if ($conflicts->isNotEmpty()) {
-                                                $names = $conflicts->pluck('product.name')->implode(', ');
-                                                $fail("Produk sudah menjadi anggota grup lain: {$names}");
-                                            }
-                                        };
-                                    },
-                                ]),
+                                ->columns(4),
                         ])
                         ->collapsible(),
                 ])
@@ -257,11 +236,23 @@ class ProductOnlineGroupResource extends Resource
 
                 TextColumn::make('user.name')
                     ->label('Pembuat'),
+
+                TextColumn::make('deleted_at')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn($state) => $state ? 'Dihapus' : 'Aktif')
+                    ->color(fn($state) => $state ? 'danger' : 'success')
+                    ->toggleable(),
             ])
-            ->filters([])
+            ->filters([
+                \Filament\Tables\Filters\TrashedFilter::make(),
+            ])
             ->actions([
                 \Filament\Actions\ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
+                    \Filament\Actions\DeleteAction::make(),
+                    \Filament\Actions\RestoreAction::make(),
+                    \Filament\Actions\ForceDeleteAction::make(),
                 ]),
             ])
             ->bulkActions([
