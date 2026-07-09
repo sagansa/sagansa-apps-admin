@@ -17,7 +17,7 @@
     </template>
 
     <template x-if="allImages.length > 0">
-        <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+        <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
             <template x-for="(img, idx) in allImages" :key="img.id">
                 <label
                     class="relative flex flex-col items-center rounded-lg overflow-hidden border-2 cursor-pointer transition-all duration-150"
