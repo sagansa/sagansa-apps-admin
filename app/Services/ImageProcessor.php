@@ -300,6 +300,12 @@ class ImageProcessor
                 $itemId = null;
                 $itemType = null;
                 $infeBody = substr($bodyData, $pos + 8, $boxSize - 8);
+
+                if (strlen($infeBody) < 4) {
+                    $pos += $boxSize;
+                    continue;
+                }
+
                 $infeVersion = ord($infeBody[0]);
 
                 if ($infeVersion >= 2) {
@@ -374,8 +380,15 @@ class ImageProcessor
 
         $pos = $itemCountOffset + $itemCountSize;
 
+        $bodyLen = strlen($bodyData);
+
         for ($i = 0; $i < $itemCount; $i++) {
             $itemIdSize = $version < 2 ? 2 : 4;
+
+            if ($pos + $itemIdSize > $bodyLen) {
+                break;
+            }
+
             $itemID = $version < 2
                 ? unpack('n', substr($bodyData, $pos, 2))[1]
                 : unpack('N', substr($bodyData, $pos, 4))[1];
@@ -383,18 +396,21 @@ class ImageProcessor
 
             // construction_method (2 bits) + reserved (14 bits) = 2 bytes
             // for version 0: data_reference_index instead
+            if ($pos + 2 > $bodyLen) {
+                break;
+            }
             $pos += 2;
 
             $baseOffset = 0;
 
-            if ($baseOffsetSize > 0 && $pos + $baseOffsetSize <= strlen($bodyData)) {
+            if ($baseOffsetSize > 0 && $pos + $baseOffsetSize <= $bodyLen) {
                 $baseOffset = $this->readUint($bodyData, $pos, $baseOffsetSize);
                 $pos += $baseOffsetSize;
             }
 
             // extent_count is always present (2 bytes) for all versions
             $extentCount = 0;
-            if ($pos + 2 <= strlen($bodyData)) {
+            if ($pos + 2 <= $bodyLen) {
                 $extentCount = unpack('n', substr($bodyData, $pos, 2))[1];
                 $pos += 2;
             }
@@ -402,18 +418,21 @@ class ImageProcessor
             $extents = [];
 
             for ($j = 0; $j < $extentCount; $j++) {
-                if ($indexSize > 0 && $pos + $indexSize <= strlen($bodyData)) {
+                if ($indexSize > 0) {
+                    if ($pos + $indexSize > $bodyLen) {
+                        break;
+                    }
                     $pos += $indexSize;
                 }
 
                 $extentOffset = 0;
-                if ($pos + $offsetSize <= strlen($bodyData)) {
+                if ($pos + $offsetSize <= $bodyLen) {
                     $extentOffset = $this->readUint($bodyData, $pos, $offsetSize);
                     $pos += $offsetSize;
                 }
 
                 $extentLength = 0;
-                if ($pos + $lengthSize <= strlen($bodyData)) {
+                if ($pos + $lengthSize <= $bodyLen) {
                     $extentLength = $this->readUint($bodyData, $pos, $lengthSize);
                     $pos += $lengthSize;
                 }
