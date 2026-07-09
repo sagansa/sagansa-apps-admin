@@ -27,6 +27,7 @@ class ImageProcessor
 
         $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
         imagewebp($image, $outputPath, self::WEBP_QUALITY);
+        imagedestroy($image);
 
         return $outputPath;
     }
@@ -782,7 +783,12 @@ class ImageProcessor
 
         $cropped = imagecrop($image, ['x' => $x, 'y' => $y, 'width' => $size, 'height' => $size]);
 
-        return $cropped ?: $image;
+        if ($cropped) {
+            imagedestroy($image);
+            return $cropped;
+        }
+
+        return $image;
     }
 
     private function resizeToWebFriendly(\GdImage $image): \GdImage
@@ -800,7 +806,12 @@ class ImageProcessor
 
         $resized = imagescale($image, $newW, $newH);
 
-        return $resized;
+        if ($resized) {
+            imagedestroy($image);
+            return $resized;
+        }
+
+        return $image;
     }
 
     private function applyWatermark(\GdImage $image): void

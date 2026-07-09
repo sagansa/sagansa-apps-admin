@@ -4730,4 +4730,9 @@ return [
             ],
         ],
     ],
+
+    'productOnlineGroups' => [
+        'itemTitle' => 'Grup Produk Online',
+        'collectionTitle' => 'Grup Produk Online',
+    ],
 ];

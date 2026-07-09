@@ -5335,4 +5335,9 @@ return [
             ],
         ],
     ],
+
+    'productOnlineGroups' => [
+        'itemTitle' => 'Product Online Group',
+        'collectionTitle' => 'Product Online Groups',
+    ],
 ];
