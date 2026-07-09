@@ -9,9 +9,26 @@
 
 <div
     x-data="{
-        selected: $wire.$entangle('data.selected_image_ids'),
-        selectedProductIds: $wire.$entangle('data.selected_product_ids'),
+        selected: [],
+        selectedProductIds: [],
         allImages: {{ json_encode($allImages) }},
+        init() {
+            this.$nextTick(() => {
+                let raw = $wire.get('data.selected_image_ids');
+                this.selected = Array.isArray(raw) ? raw.map(Number) : [];
+                raw = $wire.get('data.selected_product_ids');
+                this.selectedProductIds = Array.isArray(raw) ? raw.map(Number) : [];
+            });
+        },
+        toggleImage(id) {
+            const numId = Number(id);
+            if (this.selected.includes(numId)) {
+                this.selected = this.selected.filter(v => v !== numId);
+            } else {
+                this.selected = [...this.selected, numId];
+            }
+            $wire.set('data.selected_image_ids', this.selected);
+        },
         get filteredImages() {
             const ids = this.selectedProductIds;
             if (!ids || ids.length === 0) return [];
@@ -33,13 +50,14 @@
         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             <template x-for="(img, idx) in filteredImages" :key="img.id">
                 <label
-                    :class="(selected || []).includes(Number(img.id)) ? 'border-[#C6A96B] ring-2 ring-[#C6A96B]/30' : 'border-gray-700 hover:border-gray-500'"
+                    :class="selected.includes(Number(img.id)) ? 'border-[#C6A96B] ring-2 ring-[#C6A96B]/30' : 'border-gray-700 hover:border-gray-500'"
                     style="width: calc(16.666% - 7px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; border-radius: 8px; overflow: hidden; border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.15s;"
                 >
                     <input
                         type="checkbox"
                         :value="img.id"
-                        x-model="selected"
+                        :checked="selected.includes(Number(img.id))"
+                        @change="toggleImage(img.id)"
                         style="position: absolute; top: 4px; right: 4px; z-index: 10; width: 16px; height: 16px; border-radius: 4px; accent-color: #C6A96B;"
                     />
                     <img
