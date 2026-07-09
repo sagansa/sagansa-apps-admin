@@ -17,27 +17,26 @@
     </template>
 
     <template x-if="allImages.length > 0">
-        <div class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             <template x-for="(img, idx) in allImages" :key="img.id">
                 <label
-                    class="relative flex flex-col items-center rounded-lg overflow-hidden border-2 cursor-pointer transition-all duration-150"
                     :class="(selected || []).includes(Number(img.id)) ? 'border-[#C6A96B] ring-2 ring-[#C6A96B]/30' : 'border-gray-700 hover:border-gray-500'"
-                    style="aspect-ratio: 1;"
+                    style="width: calc(16.666% - 7px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; border-radius: 8px; overflow: hidden; border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.15s;"
                 >
                     <input
                         type="checkbox"
                         :value="img.id"
                         x-model="selected"
-                        class="absolute top-1 right-1 z-10 w-4 h-4 rounded accent-[#C6A96B]"
+                        style="position: absolute; top: 4px; right: 4px; z-index: 10; width: 16px; height: 16px; border-radius: 4px; accent-color: #C6A96B;"
                     />
                     <img
                         :src="img.url"
                         :alt="img.product_name"
-                        class="w-full h-full object-cover"
+                        style="width: 100%; height: 100%; object-fit: cover;"
                         loading="lazy"
                     />
-                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-4">
-                        <p class="text-white text-[10px] leading-tight truncate" x-text="img.product_name"></p>
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent); padding: 4px 6px 2px;">
+                        <p style="color: white; font-size: 10px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="img.product_name"></p>
                     </div>
                 </label>
             </template>
