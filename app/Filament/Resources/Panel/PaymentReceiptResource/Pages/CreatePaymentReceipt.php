@@ -15,6 +15,8 @@ class CreatePaymentReceipt extends CreateRecord
 {
     protected static string $resource = PaymentReceiptResource::class;
 
+    protected bool $creationFailed = false;
+
     /**
      * Override mount untuk mendukung prefill dari invoice via query string.
      *
@@ -74,7 +76,7 @@ class CreatePaymentReceipt extends CreateRecord
 
         try {
             DB::transaction(function () use ($record): void {
-                $paymentFor = PaymentFor::tryFrom((string) $record->payment_for)
+                $paymentFor = $record->payment_for
                     ?? throw new \RuntimeException('Invalid payment_for value.');
 
                 match ($paymentFor) {
@@ -92,14 +94,14 @@ class CreatePaymentReceipt extends CreateRecord
                 $record->forceDelete();
             });
 
+            $this->creationFailed = true;
+
             Notification::make()
                 ->title('Gagal menyimpan payment receipt')
                 ->body($e->getMessage() ?: 'Salah satu item sudah tidak siap dibayar. Silakan refresh dan coba lagi.')
                 ->danger()
                 ->persistent()
                 ->send();
-
-            $this->redirect(static::getResource()::getUrl('create'));
         }
     }
 
@@ -145,6 +147,28 @@ class CreatePaymentReceipt extends CreateRecord
                 );
             }
         }
+    }
+
+    /**
+     * Cegah redirect ke edit page jika afterCreate() gagal (race condition)
+     * dan record sudah di-force-delete.
+     */
+    protected function getRedirectUrl(): string
+    {
+        if ($this->creationFailed) {
+            return static::getResource()::getUrl('create');
+        }
+
+        return parent::getRedirectUrl();
+    }
+
+    protected function getCreatedNotification(): ?\Filament\Notifications\Notification
+    {
+        if ($this->creationFailed) {
+            return null;
+        }
+
+        return parent::getCreatedNotification();
     }
 
     /**
