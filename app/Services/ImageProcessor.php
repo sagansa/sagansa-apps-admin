@@ -22,6 +22,7 @@ class ImageProcessor
         $ext = strtolower($file->getClientOriginalExtension());
 
         $image = $this->loadImage($inputPath, $ext);
+        $image = $this->cropToSquare($image);
         $image = $this->resizeToWebFriendly($image);
 
         $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
@@ -764,6 +765,24 @@ class ImageProcessor
         }
 
         return $outputPath;
+    }
+
+    private function cropToSquare(\GdImage $image): \GdImage
+    {
+        $w = imagesx($image);
+        $h = imagesy($image);
+
+        if ($w === $h) {
+            return $image;
+        }
+
+        $size = min($w, $h);
+        $x = (int) (($w - $size) / 2);
+        $y = (int) (($h - $size) / 2);
+
+        $cropped = imagecrop($image, ['x' => $x, 'y' => $y, 'width' => $size, 'height' => $size]);
+
+        return $cropped ?: $image;
     }
 
     private function resizeToWebFriendly(\GdImage $image): \GdImage

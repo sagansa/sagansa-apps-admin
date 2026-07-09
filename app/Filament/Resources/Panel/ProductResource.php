@@ -65,29 +65,31 @@ class ProductResource extends Resource
         return $form
             ->columns(['default' => 1, 'lg' => 3])
             ->schema([
+                Section::make('Media Produk')
+                    ->icon('heroicon-o-photo')
+                    ->schema([
+                        Repeater::make('images')
+                            ->label('')
+                            ->relationship('images')
+                            ->schema([
+                                ImageInput::make('image_url')
+                                    ->label('')
+                                    ->directory('images/Product')
+                                    ->hiddenLabel()
+                                    ->imageCropAspectRatio('1:1')
+                                    ->imageResizeMode('cover'),
+                            ])
+                            ->grid(4)
+                            ->orderColumn('order')
+                            ->reorderable()
+                            ->addActionLabel('Tambah Foto')
+                            ->defaultItems(0)
+                            ->collapsed(false),
+                    ])
+                    ->columnSpanFull(),
+
                 // Main content column
                 Group::make([
-                    Section::make('Media Produk')
-                        ->icon('heroicon-o-photo')
-                        ->schema([
-                            Repeater::make('images')
-                                ->label('Foto Produk')
-                                ->relationship('images')
-                                ->schema([
-                                    ImageInput::make('image_url')
-                                        ->label('')
-                                        ->directory('images/Product')
-                                        ->hiddenLabel(),
-                                ])
-                                ->grid(4)
-                                ->orderColumn('order')
-                                ->reorderable()
-                                ->addActionLabel('Tambah Foto')
-                                ->defaultItems(0)
-                                ->collapsed(false),
-                        ])
-                        ->collapsible(),
-
                     Section::make('Informasi Dasar')
                         ->icon('heroicon-o-information-circle')
                         ->schema([
