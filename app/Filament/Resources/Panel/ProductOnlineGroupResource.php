@@ -177,14 +177,19 @@ class ProductOnlineGroupResource extends Resource
                                 })
                                 ->columns(4)
                                 ->rules([
-                                    function () {
-                                        return function (string $attribute, $value, \Closure $fail) {
+                                    // Abaikan record saat ini lewat \$livewire, BUKAN request()->route('record').
+                                    // Saat Save, Livewire mengirim request ke endpoint /livewire-update
+                                    // (bukan route /{record}/edit), sehingga request()->route('record') == null.
+                                    // Akibatnya record saat ini tidak dikecualikan, dan anggota yang sudah
+                                    // ada terdeteksi sebagai konflik -> "Produk sudah menjadi anggota grup lain".
+                                    function ($livewire) {
+                                        return function (string $attribute, $value, \Closure $fail) use ($livewire) {
                                             if (empty($value)) return;
 
                                             $existing = \App\Models\ProductOnlineGroupItem::whereIn('product_id', $value)
                                                 ->whereHas('group', fn($q) => $q->whereNull('deleted_at'));
 
-                                            $recordId = request()?->route('record');
+                                            $recordId = $livewire?->getRecord()?->getKey();
                                             if ($recordId) {
                                                 $existing->where('product_online_group_id', '!=', $recordId);
                                             }
