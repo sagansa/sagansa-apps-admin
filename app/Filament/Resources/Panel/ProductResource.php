@@ -67,6 +67,27 @@ class ProductResource extends Resource
             ->schema([
                 // Main content column
                 Group::make([
+                    Section::make('Media Produk')
+                        ->icon('heroicon-o-photo')
+                        ->schema([
+                            Repeater::make('images')
+                                ->label('Foto Produk')
+                                ->relationship('images')
+                                ->schema([
+                                    ImageInput::make('image_url')
+                                        ->label('')
+                                        ->directory('images/Product')
+                                        ->hiddenLabel(),
+                                ])
+                                ->grid(4)
+                                ->orderColumn('order')
+                                ->reorderable()
+                                ->addActionLabel('Tambah Foto')
+                                ->defaultItems(0)
+                                ->collapsed(false),
+                        ])
+                        ->collapsible(),
+
                     Section::make('Informasi Dasar')
                         ->icon('heroicon-o-information-circle')
                         ->schema([
@@ -152,26 +173,6 @@ class ProductResource extends Resource
 
                     // Sidebar column
                     Group::make([
-                        Section::make('Media Produk')
-                            ->icon('heroicon-o-photo')
-                            ->schema([
-                                Repeater::make('images')
-                                    ->label('Foto Produk')
-                                    ->relationship('images')
-                                    ->schema([
-                                        ImageInput::make('image_url')
-                                            ->label('')
-                                            ->directory('images/Product')
-                                            ->hiddenLabel(),
-                                    ])
-                                    ->orderColumn('order')
-                                    ->reorderable()
-                                    ->addActionLabel('Tambah Foto')
-                                    ->defaultItems(0)
-                                    ->collapsed(false),
-                            ])
-                            ->collapsible(),
-
                         Section::make('Status & Visibilitas')
                             ->icon('heroicon-o-check-circle')
                             ->schema([
