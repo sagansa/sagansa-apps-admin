@@ -38,6 +38,12 @@ class ImageProcessor
     private function loadImage(string $path, string $ext): \GdImage
     {
         if (in_array($ext, ['heic', 'heif'], true)) {
+            if (! class_exists(HeicToJpg::class)) {
+                throw new \RuntimeException(
+                    'HEIC conversion requires the maestroerror/php-heic-to-jpg package. Run: composer require maestroerror/php-heic-to-jpg'
+                );
+            }
+
             $converter = HeicToJpg::convert($path);
             $jpegPath = tempnam(sys_get_temp_dir(), 'heic_') . '.jpg';
             $converter->saveAs($jpegPath);

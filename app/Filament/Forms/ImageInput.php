@@ -19,6 +19,7 @@ class ImageInput extends FileUpload
             ->downloadable()
             ->fetchFileInformation(false)
             ->disk('public')
+            ->imagePreviewHeight('300px')
             ->saveUploadedFileUsing(function (UploadedFile $file): string {
                 $processedPath = app(\App\Services\ImageProcessor::class)->process($file);
 

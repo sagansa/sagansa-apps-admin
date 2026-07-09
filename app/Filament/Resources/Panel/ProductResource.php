@@ -168,8 +168,7 @@ class ProductResource extends Resource
                                     ->reorderable()
                                     ->addActionLabel('Tambah Foto')
                                     ->defaultItems(0)
-                                    ->grid(2)
-                                    ->collapsible(),
+                                    ->collapsed(false),
                             ])
                             ->collapsible(),
 
