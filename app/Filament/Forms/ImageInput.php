@@ -2,6 +2,7 @@
 
 namespace App\Filament\Forms;
 
+use App\Rules\ImageFile;
 use Closure;
 use Filament\Forms\Components\FileUpload;
 use Illuminate\Http\UploadedFile;
@@ -12,9 +13,7 @@ class ImageInput extends FileUpload
     {
         parent::setUp();
 
-        $this->rules([
-            fn (string $attribute, mixed $value, Closure $fail) => $this->validateImage($attribute, $value, $fail),
-        ])
+        $this->rules([new ImageFile])
             ->nullable()
             ->openable()
             ->downloadable()
@@ -47,24 +46,5 @@ class ImageInput extends FileUpload
         $this->acceptedFileTypes = $types;
 
         return $this;
-    }
-
-    private function validateImage(string $attribute, mixed $value, Closure $fail): void
-    {
-        if (! $value instanceof UploadedFile) {
-            return;
-        }
-
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif'];
-
-        if (in_array(strtolower($value->getClientOriginalExtension()), $allowed, true)) {
-            return;
-        }
-
-        if (str_starts_with($value->getMimeType(), 'image/')) {
-            return;
-        }
-
-        $fail('The :attribute must be a valid image file (JPEG, PNG, GIF, WebP, HEIC).');
     }
 }
