@@ -12,6 +12,8 @@ class ProductImage extends Model
     protected $connection = 'mysql';
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $fillable = ['product_id', 'image_url', 'order'];
 
     public function product()
