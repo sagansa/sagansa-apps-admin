@@ -69,7 +69,7 @@ class ImageProcessor
         }
 
         if (! $jpegPath) {
-            $jpegPath = $this->extractEmbeddedJpeg($path);
+            $jpegPath = $this->extractHeicJpegItem($path);
         }
 
         if (! $jpegPath) {
@@ -132,28 +132,357 @@ class ImageProcessor
         return file_exists($path) ? $path : null;
     }
 
-    private function extractEmbeddedJpeg(string $heicPath): ?string
+    private function extractHeicJpegItem(string $path): ?string
     {
-        $size = @filesize($heicPath);
+        $data = file_get_contents($path);
 
-        if (! $size) {
+        if ($data === false || strlen($data) < 20) {
             return null;
         }
 
-        $handle = fopen($heicPath, 'rb');
+        $boxes = $this->parseISOBmffBoxes($data, 0, strlen($data));
 
-        if (! $handle) {
+        $metaBox = null;
+
+        foreach ($boxes as $box) {
+            if ($box['type'] === 'meta') {
+                $metaBox = $box;
+
+                break;
+            }
+        }
+
+        if (! $metaBox) {
             return null;
         }
 
-        $contents = fread($handle, $size);
-        fclose($handle);
+        $metaBody = substr($data, $metaBox['bodyOffset'], $metaBox['bodySize']);
+        $metaBoxes = $this->parseISOBmffBoxes($data, $metaBox['bodyOffset'] + 4, $metaBox['bodySize'] - 4);
 
+        $iloc = null;
+        $iinf = null;
+        $iref = null;
+
+        foreach ($metaBoxes as $box) {
+            if ($box['type'] === 'iloc') {
+                $iloc = $box;
+            } elseif ($box['type'] === 'iinf') {
+                $iinf = $box;
+            } elseif ($box['type'] === 'iref') {
+                $iref = $box;
+            }
+        }
+
+        if (! $iloc || ! $iinf) {
+            return null;
+        }
+
+        $items = $this->parseIinfItems($data, $iinf);
+
+        $jpegItemId = null;
+
+        foreach ($items as $id => $type) {
+            if (in_array($type, ['jpeg', 'jpg '], true)) {
+                $jpegItemId = $id;
+
+                break;
+            }
+        }
+
+        $thumbItemIds = [];
+
+        if ($iref && $jpegItemId === null) {
+            $thumbItemIds = $this->parseIrefThumbnails($data, $iref);
+
+            foreach ($thumbItemIds as $id) {
+                if (isset($items[$id])) {
+                    $jpegItemId = $id;
+
+                    break;
+                }
+            }
+        }
+
+        $locations = $this->parseIlocLocations($data, $iloc);
+
+        if ($jpegItemId !== null && isset($locations[$jpegItemId])) {
+            $loc = $locations[$jpegItemId];
+
+            if (isset($loc['extents']) && count($loc['extents']) > 0) {
+                $jpegData = '';
+
+                foreach ($loc['extents'] as $extent) {
+                    $jpegData .= substr($data, $extent['offset'], $extent['length']);
+                }
+
+                $outputPath = tempnam(sys_get_temp_dir(), 'heic_item_') . '.jpg';
+                file_put_contents($outputPath, $jpegData);
+
+                if (@imagecreatefromjpeg($outputPath) !== false) {
+                    return $outputPath;
+                }
+
+                unlink($outputPath);
+            }
+        }
+
+        // Try naive JPEG marker extraction as last resort
+        return $this->extractEmbeddedJpeg($data);
+    }
+
+    private function parseISOBmffBoxes(string $data, int $start, int $length): array
+    {
+        $boxes = [];
+        $offset = $start;
+        $end = $start + $length;
+
+        while ($offset + 8 <= $end) {
+            $boxSize = unpack('N', substr($data, $offset, 4))[1];
+            $boxType = substr($data, $offset + 4, 4);
+            $headerSize = 8;
+
+            if ($boxSize === 1 && $offset + 12 <= $end) {
+                $boxSize = unpack('J', substr($data, $offset + 8, 8))[1];
+                $headerSize = 16;
+            } elseif ($boxSize === 0) {
+                $boxSize = $end - $offset;
+            }
+
+            $bodyOffset = $offset + $headerSize;
+            $bodySize = $boxSize - $headerSize;
+
+            $boxes[] = [
+                'type' => $boxType,
+                'offset' => $offset,
+                'size' => $boxSize,
+                'bodyOffset' => $bodyOffset,
+                'bodySize' => $bodySize,
+            ];
+
+            $offset += $boxSize;
+        }
+
+        return $boxes;
+    }
+
+    private function parseIinfItems(string $data, array $iinf): array
+    {
+        $items = [];
+        $bodyData = substr($data, $iinf['bodyOffset'], $iinf['bodySize']);
+
+        if (strlen($bodyData) < 6) {
+            return $items;
+        }
+
+        // Read entry_count at byte 4 (after 4-byte FullBox header)
+        $entryCount = unpack('n', substr($bodyData, 4, 2))[1];
+
+        // After entry_count (byte 6), entries can be either:
+        // 1. 'infe' sub-boxes (each with own size+type header) [modern spec]
+        // 2. Plain records [older spec]
+        // Detect by checking if first bytes look like a box (type 'infe')
+        $pos = 6;
+
+        if ($pos + 8 <= strlen($bodyData) && substr($bodyData, $pos + 4, 4) === 'infe') {
+            // Format 1: 'infe' sub-boxes
+            for ($i = 0; $i < $entryCount; $i++) {
+                if ($pos + 8 > strlen($bodyData)) {
+                    break;
+                }
+
+                $boxSize = unpack('N', substr($bodyData, $pos, 4))[1];
+                $boxType = substr($bodyData, $pos + 4, 4);
+
+                if ($boxType !== 'infe' || $pos + $boxSize > strlen($bodyData)) {
+                    break;
+                }
+
+                $itemId = null;
+                $itemType = null;
+                $infeBody = substr($bodyData, $pos + 8, $boxSize - 8);
+                $infeVersion = ord($infeBody[0]);
+
+                if ($infeVersion >= 2) {
+                    // ItemInfoEntry version >= 2 extends FullBox
+                    // version+flags (4 bytes), then item_ID (4 bytes for v2+)
+                    // Actually in ISO 23008-12, for version >= 2, item_ID is 32 bits
+                    // But the body starts with version at byte 0
+                    // For v2: item_ID is at byte 4 (after version+flags)
+                    $itemId = unpack('N', substr($infeBody, 4, 4))[1];
+                    $itemType = trim(substr($infeBody, 10, 4));
+                } else {
+                    // Version 0 or 1: simple box (no version+flags in body)
+                    // item_ID at byte 0 (16 bits)
+                    $itemId = unpack('n', substr($infeBody, 0, 2))[1];
+                    $itemType = trim(substr($infeBody, 4, 4));
+                }
+
+                if ($itemId !== null && $itemType !== null) {
+                    $items[$itemId] = $itemType;
+                }
+
+                $pos += $boxSize;
+            }
+        } else {
+            // Format 2: plain records
+            for ($i = 0; $i < $entryCount; $i++) {
+                if ($pos + 8 > strlen($bodyData)) {
+                    break;
+                }
+
+                $itemId = unpack('n', substr($bodyData, $pos, 2))[1];
+                $itemType = trim(substr($bodyData, $pos + 4, 4));
+                $items[$itemId] = $itemType;
+
+                $pos += 8;
+            }
+        }
+
+        return $items;
+    }
+
+    private function parseIlocLocations(string $data, array $iloc): array
+    {
+        $locations = [];
+        $bodyData = substr($data, $iloc['bodyOffset'], $iloc['bodySize']);
+
+        if (strlen($bodyData) < 8) {
+            return $locations;
+        }
+
+        $version = ord($bodyData[0]);
+
+        // 2-byte iloc header at bytes 4-5: offset_size(4) + length_size(4) + base_offset_size(4) + index_size(4)
+        $b = unpack('n', substr($bodyData, 4, 2))[1];
+        $offsetSize = ($b >> 12) & 0xF;
+        $lengthSize = ($b >> 8) & 0xF;
+        $baseOffsetSize = ($b >> 4) & 0xF;
+        $indexSize = $version >= 2 ? ($b & 0xF) : 0;
+
+        // item_count starts at byte 6 (after 4-byte FullBox header + 2-byte iloc header)
+        // version < 2: uint16, version >= 2: uint32
+        $itemCountOffset = 6;
+        $itemCountSize = $version < 2 ? 2 : 4;
+
+        if (strlen($bodyData) < $itemCountOffset + $itemCountSize) {
+            return $locations;
+        }
+
+        $itemCount = $version < 2
+            ? unpack('n', substr($bodyData, $itemCountOffset, 2))[1]
+            : unpack('N', substr($bodyData, $itemCountOffset, 4))[1];
+
+        $pos = $itemCountOffset + $itemCountSize;
+
+        for ($i = 0; $i < $itemCount; $i++) {
+            $itemIdSize = $version < 2 ? 2 : 4;
+            $itemID = $version < 2
+                ? unpack('n', substr($bodyData, $pos, 2))[1]
+                : unpack('N', substr($bodyData, $pos, 4))[1];
+            $pos += $itemIdSize;
+
+            // construction_method (2 bits) + reserved (14 bits) = 2 bytes
+            // for version 0: data_reference_index instead
+            $pos += 2;
+
+            $baseOffset = 0;
+
+            if ($baseOffsetSize > 0 && $pos + $baseOffsetSize <= strlen($bodyData)) {
+                $baseOffset = $this->readUint($bodyData, $pos, $baseOffsetSize);
+                $pos += $baseOffsetSize;
+            }
+
+            // extent_count is always present (2 bytes) for all versions
+            $extentCount = 0;
+            if ($pos + 2 <= strlen($bodyData)) {
+                $extentCount = unpack('n', substr($bodyData, $pos, 2))[1];
+                $pos += 2;
+            }
+
+            $extents = [];
+
+            for ($j = 0; $j < $extentCount; $j++) {
+                if ($indexSize > 0 && $pos + $indexSize <= strlen($bodyData)) {
+                    $pos += $indexSize;
+                }
+
+                $extentOffset = 0;
+                if ($pos + $offsetSize <= strlen($bodyData)) {
+                    $extentOffset = $this->readUint($bodyData, $pos, $offsetSize);
+                    $pos += $offsetSize;
+                }
+
+                $extentLength = 0;
+                if ($pos + $lengthSize <= strlen($bodyData)) {
+                    $extentLength = $this->readUint($bodyData, $pos, $lengthSize);
+                    $pos += $lengthSize;
+                }
+
+                $extents[] = [
+                    'offset' => $baseOffset + $extentOffset,
+                    'length' => $extentLength,
+                ];
+            }
+
+            $locations[$itemID] = [
+                'extents' => $extents,
+            ];
+        }
+
+        return $locations;
+    }
+
+    private function parseIrefThumbnails(string $data, array $iref): array
+    {
+        $thumbIds = [];
+
+        $refBoxes = $this->parseISOBmffBoxes($data, $iref['bodyOffset'] + 4, $iref['bodySize'] - 4);
+
+        foreach ($refBoxes as $box) {
+            if ($box['type'] === 'thmb') {
+                $boxData = substr($data, $box['bodyOffset'], $box['bodySize']);
+
+                if (strlen($boxData) < 12) {
+                    continue;
+                }
+
+                $fromId = unpack('n', substr($boxData, 4, 2))[1];
+                $refCount = unpack('n', substr($boxData, 6, 2))[1];
+
+                for ($i = 0; $i < $refCount; $i++) {
+                    $toIdOffset = 8 + ($i * 2);
+                    if ($toIdOffset + 2 <= strlen($boxData)) {
+                        $thumbIds[] = unpack('n', substr($boxData, $toIdOffset, 2))[1];
+                    }
+                }
+            }
+        }
+
+        return $thumbIds;
+    }
+
+    private function readUint(string $data, int $offset, int $bytes): int
+    {
+        $value = 0;
+
+        for ($i = 0; $i < $bytes; $i++) {
+            if ($offset + $i >= strlen($data)) {
+                break;
+            }
+
+            $value = ($value << 8) | ord($data[$offset + $i]);
+        }
+
+        return $value;
+    }
+
+    private function extractEmbeddedJpeg(string $data): ?string
+    {
         $jpegs = [];
         $offset = 0;
 
-        while (($start = strpos($contents, "\xFF\xD8\xFF", $offset)) !== false) {
-            $end = strpos($contents, "\xFF\xD9", $start);
+        while (($start = strpos($data, "\xFF\xD8\xFF", $offset)) !== false) {
+            $end = strpos($data, "\xFF\xD9", $start);
 
             if ($end === false) {
                 break;
@@ -175,20 +504,16 @@ class ImageProcessor
         usort($jpegs, fn (array $a, array $b): int => $b['length'] <=> $a['length']);
 
         $best = $jpegs[0];
-        $jpegData = substr($contents, $best['start'], $best['length']);
+        $jpegData = substr($data, $best['start'], $best['length']);
 
         $outputPath = tempnam(sys_get_temp_dir(), 'heic_embedded_') . '.jpg';
         file_put_contents($outputPath, $jpegData);
 
-        $image = @imagecreatefromjpeg($outputPath);
-
-        if ($image === false) {
+        if (@imagecreatefromjpeg($outputPath) === false) {
             unlink($outputPath);
 
             return null;
         }
-
-        imagedestroy($image);
 
         return $outputPath;
     }
