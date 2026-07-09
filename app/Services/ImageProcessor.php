@@ -21,7 +21,17 @@ class ImageProcessor
         $inputPath = $file->getRealPath();
         $ext = strtolower($file->getClientOriginalExtension());
 
-        $image = $this->loadImage($inputPath, $ext);
+        // For non-HEIC images, skip heavy GD processing — just convert to WebP
+        // or copy as-is. HEIC goes through full conversion + crop + resize.
+        if (! in_array($ext, ['heic', 'heif'], true)) {
+            $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
+            $image = $this->loadImage($inputPath, $ext);
+            imagewebp($image, $outputPath, self::WEBP_QUALITY);
+            imagedestroy($image);
+            return $outputPath;
+        }
+
+        $image = $this->convertHeic($inputPath);
         $image = $this->cropToSquare($image);
         $image = $this->resizeToWebFriendly($image);
 
@@ -34,10 +44,6 @@ class ImageProcessor
 
     private function loadImage(string $path, string $ext): \GdImage
     {
-        if (in_array($ext, ['heic', 'heif'], true)) {
-            return $this->convertHeic($path);
-        }
-
         return match ($ext) {
             'png' => imagecreatefrompng($path),
             'gif' => imagecreatefromgif($path),
