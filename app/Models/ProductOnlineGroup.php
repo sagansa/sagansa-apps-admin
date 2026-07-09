@@ -19,6 +19,22 @@ class ProductOnlineGroup extends Model
     protected $guarded = ['id'];
     protected $appends = ['image_url', 'combined_stock'];
 
+    public static function boot()
+    {
+        parent::boot();
+
+        static::saved(function ($group) {
+            $first = $group->images()->with('image')->orderBy('order')->first();
+            $url = $first?->image?->getImageUrl();
+
+            if ($group->getOriginal('image') !== $url) {
+                ProductOnlineGroup::withoutTimestamps(fn () =>
+                    ProductOnlineGroup::where('id', $group->id)->update(['image' => $url])
+                );
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -33,6 +49,11 @@ class ProductOnlineGroup extends Model
     public function items()
     {
         return $this->hasMany(ProductOnlineGroupItem::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ProductOnlineGroupImage::class, 'product_online_group_id')->orderBy('order');
     }
 
     public function products()
@@ -62,6 +83,11 @@ class ProductOnlineGroup extends Model
 
     public function getImageUrlAttribute()
     {
+        $pivotImage = $this->images()->with('image')->first()?->image?->getImageUrl();
+        if ($pivotImage) {
+            return $pivotImage;
+        }
+
         return PublicStorageUrl::from(
             $this->attributes['image'] ?? null,
             'https://placehold.co/600x400?text=No+Image'

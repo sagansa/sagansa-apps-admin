@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\Panel\ProductOnlineGroupResource\Pages;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
@@ -55,6 +56,44 @@ class ProductOnlineGroupResource extends Resource
         return $form
             ->columns(['default' => 1, 'lg' => 3])
             ->schema([
+                Section::make('Media Produk')
+                    ->icon('heroicon-o-photo')
+                    ->description('Pilih gambar dari produk yang tergabung dalam group ini')
+                    ->schema([
+                        Repeater::make('images')
+                            ->label('')
+                            ->relationship('images')
+                            ->schema([
+                                Select::make('product_image_id')
+                                    ->label('Gambar')
+                                    ->options(function (Get $get, $record) {
+                                        $id = $record?->id ?? request()->route('record');
+                                        if (!$id) return ['—' => 'Simpan group terlebih dahulu'];
+
+                                        $group = ProductOnlineGroup::with('items.product.images')->find($id);
+                                        if (!$group || $group->items->isEmpty())
+                                            return ['—' => 'Tidak ada produk dalam group'];
+
+                                        $options = [];
+                                        foreach ($group->items as $item) {
+                                            foreach ($item->product->images as $img) {
+                                                $filename = basename($img->getRawOriginal('image_url') ?? '');
+                                                $options[$img->id] = "#{$img->id} {$item->product->name}" . ($filename ? " ({$filename})" : '');
+                                            }
+                                        }
+                                        return $options ?: ['—' => 'Tidak ada gambar tersedia'];
+                                    })
+                                    ->searchable()
+                                    ->required(),
+                            ])
+                            ->orderColumn('order')
+                            ->reorderable()
+                            ->addActionLabel('Tambah Foto')
+                            ->defaultItems(0)
+                            ->collapsed(false),
+                    ])
+                    ->columnSpanFull(),
+
                 Group::make([
                     Section::make('Informasi Dasar')
                         ->icon('heroicon-o-information-circle')
@@ -161,8 +200,9 @@ class ProductOnlineGroupResource extends Resource
                                                     $existing = \App\Models\ProductOnlineGroupItem::where('product_id', $value)
                                                         ->whereHas('group', fn($q) => $q->whereNull('deleted_at'));
 
-                                                    if ($this instanceof \Filament\Resources\Pages\EditRecord && $this->record) {
-                                                        $existing->where('product_online_group_id', '!=', $this->record->id);
+                                                    $recordId = request()?->route('record');
+                                                    if ($recordId) {
+                                                        $existing->where('product_online_group_id', '!=', $recordId);
                                                     }
 
                                                     if ($existing->exists()) {
@@ -183,16 +223,6 @@ class ProductOnlineGroupResource extends Resource
                 ->columnSpan(['lg' => 2]),
 
                 Group::make([
-                    Section::make('Media Produk')
-                        ->icon('heroicon-o-photo')
-                        ->schema([
-                            ImageInput::make('image')
-                                ->label('Foto Utama')
-                                ->directory('images/ProductOnlineGroup')
-                                ->image(),
-                        ])
-                        ->collapsible(),
-
                     Section::make('Status & Visibilitas')
                         ->icon('heroicon-o-check-circle')
                         ->schema([
