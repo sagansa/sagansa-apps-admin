@@ -23,7 +23,6 @@ class ImageProcessor
 
         $image = $this->loadImage($inputPath, $ext);
         $image = $this->resizeToWebFriendly($image);
-        $this->applyWatermark($image);
 
         $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
         imagewebp($image, $outputPath, self::WEBP_QUALITY);
@@ -69,6 +68,14 @@ class ImageProcessor
         }
 
         if (! $jpegPath) {
+            $jpegPath = $this->convertHeicWithImagick($path);
+        }
+
+        if (! $jpegPath) {
+            $jpegPath = $this->convertHeicWithGd($path);
+        }
+
+        if (! $jpegPath) {
             $jpegPath = $this->extractHeicJpegItem($path);
         }
 
@@ -82,6 +89,73 @@ class ImageProcessor
         unlink($jpegPath);
 
         return $image;
+    }
+
+    private function convertHeicWithImagick(string $path): ?string
+    {
+        if (! extension_loaded('imagick') || ! class_exists(\Imagick::class)) {
+            return null;
+        }
+
+        try {
+            $imagick = new \Imagick();
+            $imagick->readImage($path);
+
+            $format = $imagick->getImageFormat();
+            if (! in_array(strtoupper($format), ['HEIC', 'HEIF', 'AVIF'], true)) {
+                $imagick->destroy();
+
+                return null;
+            }
+
+            $imagick->setImageFormat('jpeg');
+            $imagick->setImageCompressionQuality(90);
+
+            $outputPath = tempnam(sys_get_temp_dir(), 'heic_imagick_') . '.jpg';
+            $imagick->writeImage($outputPath);
+            $imagick->destroy();
+
+            if (file_exists($outputPath) && filesize($outputPath) > 0) {
+                return $outputPath;
+            }
+        } catch (\Throwable) {
+            // Fall through
+        }
+
+        return null;
+    }
+
+    private function convertHeicWithGd(string $path): ?string
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        try {
+            $data = file_get_contents($path);
+
+            if ($data === false || strlen($data) < 20) {
+                return null;
+            }
+
+            $image = @imagecreatefromstring($data);
+
+            if ($image === false) {
+                return null;
+            }
+
+            $outputPath = tempnam(sys_get_temp_dir(), 'heic_gd_') . '.jpg';
+            imagejpeg($image, $outputPath, 90);
+            imagedestroy($image);
+
+            if (file_exists($outputPath) && filesize($outputPath) > 0) {
+                return $outputPath;
+            }
+        } catch (\Throwable) {
+            // Fall through
+        }
+
+        return null;
     }
 
     private function convertHeicWithBinary(string $path): string
@@ -224,6 +298,13 @@ class ImageProcessor
 
                 unlink($outputPath);
             }
+        }
+
+        // Try extracting JPEG thumbnail from Exif item data
+        $exifJpeg = $this->extractJpegFromExifItem($data, $items, $locations);
+
+        if ($exifJpeg) {
+            return $exifJpeg;
         }
 
         // Try naive JPEG marker extraction as last resort
@@ -526,6 +607,154 @@ class ImageProcessor
         $jpegData = substr($data, $best['start'], $best['length']);
 
         $outputPath = tempnam(sys_get_temp_dir(), 'heic_embedded_') . '.jpg';
+        file_put_contents($outputPath, $jpegData);
+
+        if (@imagecreatefromjpeg($outputPath) === false) {
+            unlink($outputPath);
+
+            return null;
+        }
+
+        return $outputPath;
+    }
+
+    private function extractJpegFromExifItem(string $data, array $items, array $locations): ?string
+    {
+        $exifItemId = null;
+
+        foreach ($items as $id => $type) {
+            if (in_array($type, ['Exif'], true)) {
+                $exifItemId = $id;
+                break;
+            }
+        }
+
+        if ($exifItemId === null || ! isset($locations[$exifItemId])) {
+            return null;
+        }
+
+        $loc = $locations[$exifItemId];
+
+        if (! isset($loc['extents']) || count($loc['extents']) === 0) {
+            return null;
+        }
+
+        $exifData = '';
+
+        foreach ($loc['extents'] as $extent) {
+            $exifData .= substr($data, $extent['offset'], $extent['length']);
+        }
+
+        if (strlen($exifData) < 12) {
+            return null;
+        }
+
+        return $this->extractThumbnailFromExif($exifData);
+    }
+
+    private function extractThumbnailFromExif(string $exifData): ?string
+    {
+        // TIFF header
+        $byteOrder = substr($exifData, 0, 2);
+        $isLittleEndian = $byteOrder === 'II';
+
+        $read16 = function (int $offset) use ($exifData, $isLittleEndian): int {
+            if ($offset + 2 > strlen($exifData)) {
+                return 0;
+            }
+
+            $bytes = substr($exifData, $offset, 2);
+
+            return $isLittleEndian
+                ? unpack('v', $bytes)[1]
+                : unpack('n', $bytes)[1];
+        };
+
+        $read32 = function (int $offset) use ($exifData, $isLittleEndian): int {
+            if ($offset + 4 > strlen($exifData)) {
+                return 0;
+            }
+
+            $bytes = substr($exifData, $offset, 4);
+
+            return $isLittleEndian
+                ? unpack('V', $bytes)[1]
+                : unpack('N', $bytes)[1];
+        };
+
+        if (! in_array($byteOrder, ['II', 'MM'], true)) {
+            return null;
+        }
+
+        // Magic: 0x002A
+        if ($read16(2) !== 0x002A) {
+            return null;
+        }
+
+        // Offset to IFD0
+        $ifd0Offset = $read32(4);
+
+        if ($ifd0Offset < 8 || $ifd0Offset + 2 > strlen($exifData)) {
+            return null;
+        }
+
+        // Read IFD0 entry count
+        $ifd0Count = $read16($ifd0Offset);
+
+        // IFD0 entries start after the count
+        $ifd0EntriesEnd = $ifd0Offset + 2 + ($ifd0Count * 12);
+
+        if ($ifd0EntriesEnd + 4 > strlen($exifData)) {
+            return null;
+        }
+
+        // Next IFD offset (IFD1) is right after IFD0 entries
+        $ifd1Offset = $read32($ifd0EntriesEnd);
+
+        if ($ifd1Offset < 8 || $ifd1Offset + 2 > strlen($exifData)) {
+            return null;
+        }
+
+        // Read IFD1 entry count
+        $ifd1Count = $read16($ifd1Offset);
+
+        $jpegOffset = null;
+        $jpegLength = null;
+
+        for ($i = 0; $i < $ifd1Count; $i++) {
+            $entryOffset = $ifd1Offset + 2 + ($i * 12);
+
+            if ($entryOffset + 12 > strlen($exifData)) {
+                break;
+            }
+
+            $tag = $read16($entryOffset);
+            $type = $read16($entryOffset + 2);
+            $count = $read32($entryOffset + 4);
+            $value = $read32($entryOffset + 8);
+
+            // Tag: JPEGInterchangeFormat (513 = 0x0201)
+            if ($tag === 0x0201) {
+                $jpegOffset = $value;
+            }
+
+            // Tag: JPEGInterchangeFormatLength (514 = 0x0202)
+            if ($tag === 0x0202) {
+                $jpegLength = $value;
+            }
+        }
+
+        if ($jpegOffset === null || $jpegLength === null || $jpegLength <= 0) {
+            return null;
+        }
+
+        if ($jpegOffset + $jpegLength > strlen($exifData)) {
+            return null;
+        }
+
+        $jpegData = substr($exifData, $jpegOffset, $jpegLength);
+
+        $outputPath = tempnam(sys_get_temp_dir(), 'heic_exif_') . '.jpg';
         file_put_contents($outputPath, $jpegData);
 
         if (@imagecreatefromjpeg($outputPath) === false) {
