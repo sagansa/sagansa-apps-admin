@@ -16,7 +16,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\View;
+use Filament\Forms\Components\ViewField;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -60,9 +60,8 @@ class ProductOnlineGroupResource extends Resource
                     ->icon('heroicon-o-photo')
                     ->description('Centang gambar dari produk yang ingin ditampilkan di group ini')
                     ->schema([
-                        View::make('components.product-image-checklist')
-                            ->label('Pilih Gambar')
-                            ->statePath('selected_image_ids')
+                        ViewField::make('selected_image_ids')
+                            ->view('components.product-image-checklist')
                             ->viewData([
                                 'images' => ProductImage::with('product')->get(),
                             ]),
