@@ -16,7 +16,8 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Group;
-use Filament\Forms\Components\ViewField;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -60,11 +61,15 @@ class ProductOnlineGroupResource extends Resource
                     ->icon('heroicon-o-photo')
                     ->description('Centang gambar dari produk yang ingin ditampilkan di group ini')
                     ->schema([
-                        ViewField::make('selected_image_ids')
-                            ->view('components.product-image-checklist')
-                            ->viewData([
-                                'images' => ProductImage::with('product')->get(),
-                            ]),
+                        Hidden::make('selected_image_ids'),
+
+                        Placeholder::make('image_grid')
+                            ->label('')
+                            ->content(fn () => new \Illuminate\Support\HtmlString(
+                                view('components.product-image-checklist', [
+                                    'images' => ProductImage::with('product')->orderBy('product_id')->get(),
+                                ])->render()
+                            )),
                     ])
                     ->columnSpanFull(),
 
@@ -164,7 +169,9 @@ class ProductOnlineGroupResource extends Resource
                                 ->label('')
                                 ->options(function ($get) {
                                     $catId = $get('filter_category_id');
-                                    return Product::when($catId, fn ($q) => $q->where('online_category_id', $catId))
+                                    $excludeCatId = \App\Models\OnlineCategory::where('name', 'non')->value('id');
+                                    return Product::when($excludeCatId, fn ($q) => $q->where('online_category_id', '!=', $excludeCatId))
+                                        ->when($catId, fn ($q) => $q->where('online_category_id', $catId))
                                         ->orderBy('name')
                                         ->pluck('name', 'id');
                                 })
