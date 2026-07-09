@@ -23,10 +23,8 @@ class ImageProcessor
 
         try {
             if (! in_array($ext, ['heic', 'heif'], true)) {
-                $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
-                $image = $this->loadImage($inputPath, $ext);
-                imagewebp($image, $outputPath, self::WEBP_QUALITY);
-                imagedestroy($image);
+                $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.' . $ext;
+                copy($inputPath, $outputPath);
 
                 return $outputPath;
             }

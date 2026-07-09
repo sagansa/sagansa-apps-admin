@@ -22,11 +22,13 @@ class ImageInput extends FileUpload
             ->imagePreviewHeight('120px')
             ->saveUploadedFileUsing(function (UploadedFile $file): ?string {
                 $processedPath = app(\App\Services\ImageProcessor::class)->process($file);
+                $mime = mime_content_type($processedPath) ?: 'application/octet-stream';
+                $processedExt = pathinfo($processedPath, PATHINFO_EXTENSION);
 
                 $newFile = new UploadedFile(
                     $processedPath,
-                    pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.webp',
-                    'image/webp',
+                    pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.' . $processedExt,
+                    $mime,
                     null,
                     true,
                 );
