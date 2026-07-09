@@ -1,6 +1,7 @@
 @php
     $allImages = ($images ?? collect())->map(fn($img) => [
         'id' => $img->id,
+        'product_id' => $img->product_id,
         'url' => $img->getImageUrl(),
         'product_name' => $img->product?->name ?? 'Produk',
     ])->values()->toArray();
@@ -9,16 +10,28 @@
 <div
     x-data="{
         selected: $wire.$entangle('data.selected_image_ids'),
+        selectedProductIds: $wire.$entangle('data.selected_product_ids'),
         allImages: {{ json_encode($allImages) }},
+        get filteredImages() {
+            const ids = this.selectedProductIds;
+            if (!ids || ids.length === 0) return [];
+            return this.allImages.filter(
+                img => ids.map(Number).includes(Number(img.product_id))
+            );
+        }
     }"
 >
-    <template x-if="allImages.length === 0">
-        <p class="text-gray-500 text-sm py-4">Tidak ada gambar tersedia.</p>
+    <template x-if="!selectedProductIds || selectedProductIds.length === 0">
+        <p class="text-gray-500 text-sm py-4">Pilih produk terlebih dahulu untuk melihat gambar.</p>
     </template>
 
-    <template x-if="allImages.length > 0">
+    <template x-if="selectedProductIds && selectedProductIds.length > 0 && filteredImages.length === 0">
+        <p class="text-gray-500 text-sm py-4">Tidak ada gambar pada produk yang dipilih.</p>
+    </template>
+
+    <template x-if="filteredImages.length > 0">
         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            <template x-for="(img, idx) in allImages" :key="img.id">
+            <template x-for="(img, idx) in filteredImages" :key="img.id">
                 <label
                     :class="(selected || []).includes(Number(img.id)) ? 'border-[#C6A96B] ring-2 ring-[#C6A96B]/30' : 'border-gray-700 hover:border-gray-500'"
                     style="width: calc(16.666% - 7px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; border-radius: 8px; overflow: hidden; border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.15s;"
