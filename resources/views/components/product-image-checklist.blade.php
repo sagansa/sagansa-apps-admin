@@ -13,18 +13,17 @@
         selectedProductIds: [],
         allImages: {{ json_encode($allImages) }},
         init() {
-            $wire.get('data.selected_image_ids').then(raw => {
-                if (typeof raw === 'string' && raw) {
+            this.$nextTick(() => {
+                const raw = $wire.get('data.selected_image_ids');
+                if (typeof raw === 'string') {
                     try { this.selected = JSON.parse(raw).map(Number); } catch { this.selected = []; }
+                } else if (Array.isArray(raw)) {
+                    this.selected = raw.map(Number);
                 }
-            });
-            $wire.get('data.selected_product_ids').then(prodRaw => {
+                const prodRaw = $wire.get('data.selected_product_ids');
                 if (Array.isArray(prodRaw)) {
                     this.selectedProductIds = prodRaw.map(Number);
                 }
-            });
-            $wire.$watch('data.selected_product_ids', value => {
-                this.selectedProductIds = Array.isArray(value) ? value.map(Number) : [];
             });
         },
         get filteredImages() {
