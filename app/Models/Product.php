@@ -182,6 +182,16 @@ class Product extends Model
                 $model->slug = Str::slug($model->name);
             }
         });
+
+        static::saved(function ($product) {
+            $firstImage = $product->images()->orderBy('order')->value('image_url');
+
+            if ($product->getOriginal('image') !== $firstImage) {
+                Product::withoutTimestamps(fn () =>
+                    Product::where('id', $product->id)->update(['image' => $firstImage])
+                );
+            }
+        });
     }
 
     public function getProductNameAttribute()

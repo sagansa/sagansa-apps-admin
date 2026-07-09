@@ -155,10 +155,21 @@ class ProductResource extends Resource
                         Section::make('Media Produk')
                             ->icon('heroicon-o-photo')
                             ->schema([
-                                ImageInput::make('image')
-                                    ->label('Foto Utama')
-                                    ->directory('images/Product')
-                                    ->image(),
+                                Repeater::make('images')
+                                    ->label('Foto Produk')
+                                    ->relationship('images')
+                                    ->schema([
+                                        ImageInput::make('image_url')
+                                            ->label('')
+                                            ->directory('images/Product')
+                                            ->hiddenLabel(),
+                                    ])
+                                    ->orderColumn('order')
+                                    ->reorderable()
+                                    ->addActionLabel('Tambah Foto')
+                                    ->defaultItems(0)
+                                    ->grid(2)
+                                    ->collapsible(),
                             ])
                             ->collapsible(),
 

@@ -19,12 +19,14 @@ class ProductImage extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function getImageUrlAttribute($value)
+    public function getImageUrl(): string
     {
-        if (!$value) {
+        $path = $this->getRawOriginal('image_url');
+
+        if (!$path) {
             return 'https://placehold.co/600x400?text=No+Image';
         }
 
-        return PublicStorageUrl::from($value);
+        return PublicStorageUrl::from($path);
     }
 }

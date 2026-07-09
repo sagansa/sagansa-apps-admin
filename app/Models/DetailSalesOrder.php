@@ -18,6 +18,11 @@ class DetailSalesOrder extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function productOnlineGroup()
+    {
+        return $this->belongsTo(ProductOnlineGroup::class);
+    }
+
     public function salesOrder()
     {
         return $this->belongsTo(SalesOrder::class);

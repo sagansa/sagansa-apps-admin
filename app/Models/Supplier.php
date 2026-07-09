@@ -25,7 +25,8 @@ class Supplier extends Model
         'status',
         'image',
         'user_id',
-        'postal_code_id'
+        'postal_code_id',
+        'qris'
     ];
 
     public function province()

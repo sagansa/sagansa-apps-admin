@@ -19,6 +19,7 @@ use Filament\Tables\Columns\Layout\Stack;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
@@ -94,6 +95,14 @@ class SupplierResource extends Resource
                             ->nullable()
                             ->hiddenLabel()
                             ->placeholder('Bank Accunt No')
+                            ->string(),
+
+                        Textarea::make('qris')
+                            ->nullable()
+                            ->hiddenLabel()
+                            ->placeholder('QRIS Payload')
+                            ->helperText('Tempel hasil scan QRIS supplier')
+                            ->rows(3)
                             ->string(),
 
                         SupplierStatusSelectInput::make('status'),
