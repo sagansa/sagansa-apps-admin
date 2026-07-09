@@ -14,4 +14,36 @@ class EditProductOnlineGroup extends EditRecord
     {
         return [Actions\DeleteAction::make()];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['selected_product_ids'] = $this->record->products->pluck('id')->toArray();
+        $data['selected_image_ids'] = $this->record->images->pluck('product_image_id')->toArray();
+        return $data;
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        unset($data['selected_product_ids'], $data['selected_image_ids'], $data['filter_category_id']);
+        return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        $record = $this->record;
+        $data = $this->form->getRawState();
+
+        $record->products()->sync($data['selected_product_ids'] ?? []);
+
+        $record->images()->delete();
+        foreach (($data['selected_image_ids'] ?? []) as $order => $imageId) {
+            $record->images()->create([
+                'product_image_id' => $imageId,
+                'order' => $order,
+            ]);
+        }
+
+        $first = $record->images()->with('image')->orderBy('order')->first();
+        $record->updateQuietly(['image' => $first?->image?->getImageUrl()]);
+    }
 }

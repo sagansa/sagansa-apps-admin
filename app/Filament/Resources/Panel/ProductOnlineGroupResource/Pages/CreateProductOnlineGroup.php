@@ -13,6 +13,26 @@ class CreateProductOnlineGroup extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['user_id'] = Auth::id();
+        unset($data['selected_product_ids'], $data['selected_image_ids'], $data['filter_category_id']);
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        $record = $this->record;
+        $data = $this->form->getRawState();
+
+        $record->products()->sync($data['selected_product_ids'] ?? []);
+
+        $record->images()->delete();
+        foreach (($data['selected_image_ids'] ?? []) as $order => $imageId) {
+            $record->images()->create([
+                'product_image_id' => $imageId,
+                'order' => $order,
+            ]);
+        }
+
+        $first = $record->images()->with('image')->orderBy('order')->first();
+        $record->updateQuietly(['image' => $first?->image?->getImageUrl()]);
     }
 }

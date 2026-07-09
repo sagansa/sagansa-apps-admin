@@ -3,31 +3,28 @@
 namespace App\Filament\Resources\Panel;
 
 use App\Filament\Clusters\Transaction\Settings;
-use App\Filament\Forms\ImageInput;
 use Filament\Tables;
-use App\Models\ProductOnlineGroup;
+use App\Models\OnlineCategory;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\ProductOnlineGroup;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\View;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
-use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\IconColumn;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Schemas\Components\Utilities\Set;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\Panel\ProductOnlineGroupResource\Pages;
-use Filament\Forms\Components\CheckboxList;
-use Filament\Forms\Components\Repeater;
-use Filament\Schemas\Components\Utilities\Set;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 
 class ProductOnlineGroupResource extends Resource
 {
@@ -59,51 +56,14 @@ class ProductOnlineGroupResource extends Resource
             ->schema([
                 Section::make('Media Produk')
                     ->icon('heroicon-o-photo')
-                    ->description('Pilih gambar dari produk yang tergabung dalam group ini')
+                    ->description('Centang gambar dari produk yang ingin ditampilkan di group ini')
                     ->schema([
-                        Repeater::make('images')
-                            ->label('')
-                            ->relationship('images')
-                            ->schema([
-                                Select::make('product_image_id')
-                                    ->label('Gambar')
-                                    ->options(function ($record, $livewire) {
-                                        $productIds = data_get($livewire, 'data.products', []);
-
-                                        if (empty($productIds)) {
-                                            $id = $record?->id ?? request()->route('record');
-                                            if ($id) {
-                                                $productIds = ProductOnlineGroup::where('id', $id)
-                                                    ->with('products:id')
-                                                    ->first()?->products?->pluck('id')->toArray() ?? [];
-                                            }
-                                        }
-
-                                        if (empty($productIds)) {
-                                            return ['—' => 'Pilih produk terlebih dahulu'];
-                                        }
-
-                                        $images = ProductImage::whereIn('product_id', $productIds)->get();
-                                        if ($images->isEmpty()) {
-                                            return ['—' => 'Tidak ada gambar tersedia'];
-                                        }
-
-                                        $options = [];
-                                        foreach ($images as $img) {
-                                            $filename = basename($img->getRawOriginal('image_url') ?? '');
-                                            $productName = $img->product?->name ?? 'Produk';
-                                            $options[$img->id] = "#{$img->id} {$productName}" . ($filename ? " ({$filename})" : '');
-                                        }
-                                        return $options;
-                                    })
-                                    ->searchable()
-                                    ->required(),
-                            ])
-                            ->orderColumn('order')
-                            ->reorderable()
-                            ->addActionLabel('Tambah Foto')
-                            ->defaultItems(0)
-                            ->collapsed(false),
+                        View::make('components.product-image-checklist')
+                            ->label('Pilih Gambar')
+                            ->statePath('selected_image_ids')
+                            ->viewData([
+                                'images' => ProductImage::with('product')->get(),
+                            ]),
                     ])
                     ->columnSpanFull(),
 
@@ -193,9 +153,20 @@ class ProductOnlineGroupResource extends Resource
                         ->icon('heroicon-o-cube')
                         ->description('Centang produk fisik yang tergabung dalam grup ini')
                         ->schema([
-                            CheckboxList::make('products')
+                            Select::make('filter_category_id')
+                                ->label('Filter Kategori')
+                                ->options(fn () => OnlineCategory::pluck('name', 'id'))
+                                ->placeholder('Semua Kategori')
+                                ->reactive(),
+
+                            CheckboxList::make('selected_product_ids')
                                 ->label('')
-                                ->relationship('products', 'name')
+                                ->options(function ($get) {
+                                    $catId = $get('filter_category_id');
+                                    return Product::when($catId, fn ($q) => $q->where('online_category_id', $catId))
+                                        ->orderBy('name')
+                                        ->pluck('name', 'id');
+                                })
                                 ->columns(4)
                                 ->rules([
                                     function () {
