@@ -78,6 +78,7 @@ class ProductResource extends Resource
                                     ->hiddenLabel()
                                     ->imagePreviewHeight('200px'),
                             ])
+                            ->grid(5)
                             ->orderColumn('order')
                             ->reorderable()
                             ->addActionLabel('Tambah Foto')
