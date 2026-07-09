@@ -80,7 +80,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->PasswordReset()
-            ->registration()
+            // ->registration()
             ->emailVerification()
             ->maxContentWidth('full')
             ->userMenuItems([
