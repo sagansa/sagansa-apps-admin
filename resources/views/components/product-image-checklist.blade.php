@@ -9,38 +9,40 @@
 
 <div
     x-data="{
-        selected: $wire.$entangle('data.selected_image_ids'),
-        selectedProductIds: $wire.$entangle('data.selected_product_ids'),
+        selected: [],
+        selectedProductIds: [],
         allImages: {{ json_encode($allImages) }},
-        get selectedArray() {
-            return Array.isArray(this.selected) ? this.selected : [];
-        },
-        get selectedProductIdsArray() {
-            return Array.isArray(this.selectedProductIds) ? this.selectedProductIds : [];
-        },
-        get filteredImages() {
-            const ids = this.selectedProductIdsArray;
-            if (ids.length === 0) return [];
-            return this.allImages.filter(
-                img => ids.map(Number).includes(Number(img.product_id))
-            );
+        init() {
+            this.$nextTick(() => {
+                let raw = $wire.get('data.selected_image_ids');
+                this.selected = Array.isArray(raw) ? raw.map(Number) : [];
+                raw = $wire.get('data.selected_product_ids');
+                this.selectedProductIds = Array.isArray(raw) ? raw.map(Number) : [];
+            });
         },
         toggleImage(id) {
             const numId = Number(id);
-            const arr = this.selectedArray;
-            if (arr.includes(numId)) {
-                this.selected = arr.filter(v => v !== numId);
+            if (this.selected.includes(numId)) {
+                this.selected = this.selected.filter(v => v !== numId);
             } else {
-                this.selected = [...arr, numId];
+                this.selected = [...this.selected, numId];
             }
+            $wire.set('data.selected_image_ids', this.selected);
+        },
+        get filteredImages() {
+            const ids = this.selectedProductIds;
+            if (!ids || ids.length === 0) return [];
+            return this.allImages.filter(
+                img => ids.map(Number).includes(Number(img.product_id))
+            );
         }
     }"
 >
-    <template x-if="selectedProductIdsArray.length === 0">
+    <template x-if="!selectedProductIds || selectedProductIds.length === 0">
         <p class="text-gray-500 text-sm py-4">Pilih produk terlebih dahulu untuk melihat gambar.</p>
     </template>
 
-    <template x-if="selectedProductIdsArray.length > 0 && filteredImages.length === 0">
+    <template x-if="selectedProductIds && selectedProductIds.length > 0 && filteredImages.length === 0">
         <p class="text-gray-500 text-sm py-4">Tidak ada gambar pada produk yang dipilih.</p>
     </template>
 
@@ -48,13 +50,13 @@
         <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             <template x-for="(img, idx) in filteredImages" :key="img.id">
                 <label
-                    :class="selectedArray.includes(Number(img.id)) ? 'border-[#C6A96B] ring-2 ring-[#C6A96B]/30' : 'border-gray-700 hover:border-gray-500'"
+                    :class="selected.includes(Number(img.id)) ? 'border-[#C6A96B] ring-2 ring-[#C6A96B]/30' : 'border-gray-700 hover:border-gray-500'"
                     style="width: calc(16.666% - 7px); aspect-ratio: 1; position: relative; display: flex; flex-direction: column; align-items: center; border-radius: 8px; overflow: hidden; border-width: 2px; border-style: solid; cursor: pointer; transition: all 0.15s;"
                 >
                     <input
                         type="checkbox"
                         :value="img.id"
-                        :checked="selectedArray.includes(Number(img.id))"
+                        :checked="selected.includes(Number(img.id))"
                         @change="toggleImage(img.id)"
                         style="position: absolute; top: 4px; right: 4px; z-index: 10; width: 16px; height: 16px; border-radius: 4px; accent-color: #C6A96B;"
                     />
