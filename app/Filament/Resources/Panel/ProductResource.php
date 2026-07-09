@@ -76,8 +76,8 @@ class ProductResource extends Resource
                                     ->label('')
                                     ->directory('images/Product')
                                     ->hiddenLabel()
-                                    ->imageCropAspectRatio('1:1')
-                                    ->imageResizeMode('cover'),
+                                    ->imagePreviewHeight('80px')
+                                    ->extraAttributes(['class' => 'w-full']),
                             ])
                             ->grid(5)
                             ->orderColumn('order')
