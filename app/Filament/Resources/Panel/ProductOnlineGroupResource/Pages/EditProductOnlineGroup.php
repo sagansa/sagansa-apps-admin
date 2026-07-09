@@ -18,7 +18,7 @@ class EditProductOnlineGroup extends EditRecord
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $data['selected_product_ids'] = $this->record->products->pluck('id')->toArray();
-        $data['selected_image_ids'] = $this->record->images->pluck('product_image_id')->toArray();
+        $data['selected_image_ids'] = json_encode($this->record->images->pluck('product_image_id')->toArray());
         return $data;
     }
 
@@ -35,8 +35,9 @@ class EditProductOnlineGroup extends EditRecord
 
         $record->products()->sync($data['selected_product_ids'] ?? []);
 
+        $selectedImageIds = json_decode($data['selected_image_ids'] ?? '[]', true) ?? [];
         $record->images()->delete();
-        foreach (($data['selected_image_ids'] ?? []) as $order => $imageId) {
+        foreach ($selectedImageIds as $order => $imageId) {
             $record->images()->create([
                 'product_image_id' => $imageId,
                 'order' => $order,
