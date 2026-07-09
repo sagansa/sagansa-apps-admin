@@ -76,10 +76,8 @@ class ProductResource extends Resource
                                     ->label('')
                                     ->directory('images/Product')
                                     ->hiddenLabel()
-                                    ->imagePreviewHeight('80px')
-                                    ->extraAttributes(['class' => 'w-full']),
+                                    ->imagePreviewHeight('200px'),
                             ])
-                            ->grid(5)
                             ->orderColumn('order')
                             ->reorderable()
                             ->addActionLabel('Tambah Foto')
