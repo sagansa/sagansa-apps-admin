@@ -21,25 +21,34 @@ class ImageProcessor
         $inputPath = $file->getRealPath();
         $ext = strtolower($file->getClientOriginalExtension());
 
-        // For non-HEIC images, skip heavy GD processing — just convert to WebP
-        // or copy as-is. HEIC goes through full conversion + crop + resize.
-        if (! in_array($ext, ['heic', 'heif'], true)) {
+        try {
+            if (! in_array($ext, ['heic', 'heif'], true)) {
+                $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
+                $image = $this->loadImage($inputPath, $ext);
+                imagewebp($image, $outputPath, self::WEBP_QUALITY);
+                imagedestroy($image);
+
+                return $outputPath;
+            }
+
+            $image = $this->convertHeic($inputPath);
+            $image = $this->cropToSquare($image);
+            $image = $this->resizeToWebFriendly($image);
+
             $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
-            $image = $this->loadImage($inputPath, $ext);
             imagewebp($image, $outputPath, self::WEBP_QUALITY);
             imagedestroy($image);
+
+            return $outputPath;
+        } catch (\Throwable $e) {
+            report($e);
+
+            // Fallback: copy original file with .webp extension
+            $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
+            copy($inputPath, $outputPath);
+
             return $outputPath;
         }
-
-        $image = $this->convertHeic($inputPath);
-        $image = $this->cropToSquare($image);
-        $image = $this->resizeToWebFriendly($image);
-
-        $outputPath = tempnam(sys_get_temp_dir(), 'img_') . '.webp';
-        imagewebp($image, $outputPath, self::WEBP_QUALITY);
-        imagedestroy($image);
-
-        return $outputPath;
     }
 
     private function loadImage(string $path, string $ext): \GdImage
