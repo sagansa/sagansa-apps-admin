@@ -97,7 +97,7 @@ class ReadinessResource extends Resource
     {
         $readinesses = Readiness::query();
 
-        if (!Auth::user()->hasRole('admin') || !Auth::user()->hasRole('super-admin')) {
+        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('super-admin')) {
             $readinesses->where('created_by_id', Auth::id());
         }
 
