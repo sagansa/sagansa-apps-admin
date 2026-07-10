@@ -83,5 +83,13 @@ class AppServiceProvider extends ServiceProvider
             $switch
                 ->locales(['id','en']); // also accepts a closure
         });
+
+        \Filament\Tables\Columns\ImageColumn::configureUsing(function (\Filament\Tables\Columns\ImageColumn $column) {
+            $column->disk('img_service');
+        });
+
+        \Filament\Infolists\Components\ImageEntry::configureUsing(function (\Filament\Infolists\Components\ImageEntry $entry) {
+            $entry->disk('img_service');
+        });
     }
 }

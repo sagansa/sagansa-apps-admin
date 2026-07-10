@@ -47,6 +47,15 @@ return [
             'report' => false,
         ],
 
+        'img_service' => [
+            'driver' => 'local',
+            'root' => env('SHARED_STORAGE_PATH', storage_path('app/public')),
+            'url' => env('SHARED_STORAGE_URL', rtrim(env('IMG_SERVICE_URL', 'https://img.sagansa.id'), '/') . '/storage'),
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

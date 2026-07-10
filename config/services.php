@@ -46,4 +46,9 @@ return [
         'api_token' => env('TRACKING_API_TOKEN'),
     ],
 
+    'image' => [
+        'api_token' => env('IMAGE_SERVICE_TOKEN'),
+        'service_url' => env('IMG_SERVICE_URL', 'https://img.sagansa.id'),
+    ],
+
 ];
