@@ -75,7 +75,7 @@ class SalesOrderOnlinesResource extends Resource
                 ->columnSpan(['lg' => 1]),
         ])
             ->columns(3)
-            ->disabled(fn(?SalesOrderOnline $record) => $record !== null && in_array($record->delivery_status, [2, 3]));
+            ->disabled(fn(?SalesOrderOnline $record) => $record !== null && in_array($record->delivery_status, [2, 3, 6]));
     }
 
     public static function table(Table $table): Table
@@ -245,9 +245,9 @@ class SalesOrderOnlinesResource extends Resource
             ->actions([
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make()
-                        ->visible(fn(SalesOrderOnline $record) => !in_array($record->delivery_status, [2, 3])),
+                        ->visible(fn(SalesOrderOnline $record) => !in_array($record->delivery_status, [2, 3, 6])),
                     \Filament\Actions\ViewAction::make()
-                        ->visible(fn(SalesOrderOnline $record) => in_array($record->delivery_status, [2, 3])),
+                        ->visible(fn(SalesOrderOnline $record) => in_array($record->delivery_status, [2, 3, 6])),
                     DeleteAction::make()
                         ->visible(fn () => Auth::user()->hasRole('admin')),
                     RestoreAction::make()

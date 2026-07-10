@@ -76,25 +76,26 @@ class SalesOrderReturResource extends Resource
 
                     Placeholder::make('store_id')
                         ->label('Store')
-                        ->content(fn(SalesOrderRetur $record): string => $record->store->nickname),
+                        ->content(fn(SalesOrderRetur $record): string => optional($record->store)->nickname ?? '-'),
 
                     Placeholder::make('delivery_date')
                         ->label('Delivery Date')
-                        ->content(fn(SalesOrderRetur $record): string => $record->delivery_date),
+                        ->content(fn(SalesOrderRetur $record): string => $record->delivery_date ?? '-'),
 
                     Placeholder::make('online_shop_provider_id')
                         ->label('Online Shop')
-                        ->content(fn(SalesOrderRetur $record): string => $record->onlineShopProvider->name),
+                        ->content(fn(SalesOrderRetur $record): string => optional($record->onlineShopProvider)->name ?? '-'),
 
                     Placeholder::make('delivery_service_id')
                         ->label('Delivery Service')
-                        ->content(fn(SalesOrderRetur $record): string => $record->deliveryService->name),
+                        ->content(fn(SalesOrderRetur $record): string => optional($record->deliveryService)->name ?? '-'),
 
                     Placeholder::make('receipt_no')
-                        ->content(fn(SalesOrderRetur $record): string => $record->receipt_no),
+                        ->content(fn(SalesOrderRetur $record): string => $record->receipt_no ?? '-'),
 
                     Placeholder::make('Total Price')
-                        ->content(fn(SalesOrderRetur $record): string => 'Rp ' . number_format($record->total_price, 0, ',', '.') . ''),
+                        ->content(fn(SalesOrderRetur $record): string => 'Rp ' . number_format($record->total_price, 0, ',', '.') . '')
+                        ->visible(fn() => Auth::user()->hasRole('admin')),
 
                 ]),
                 Grid::make(['default' => 1])->schema([
@@ -107,7 +108,9 @@ class SalesOrderReturResource extends Resource
                             '6' => 'dikembalikan'
                         ]),
 
-                    Notes::make('notes'),
+                    Notes::make('notes')
+                        ->required(fn ($get) => $get('delivery_status') == '6')
+                        ->placeholder('Silakan tulis alasan barang dikembalikan (misal: Alamat tidak ditemukan, pelanggan menolak bayar COD, dll.)'),
                 ]),
             ]),
         ]);
@@ -154,6 +157,16 @@ class SalesOrderReturResource extends Resource
                         )
                         ->label('')
                         ->prefix('Rp ')),
+
+                TextColumn::make('orders_list')
+                    ->label('Orders')
+                    ->html()
+                    ->state(function (SalesOrderRetur $record) {
+                        return implode('<br>', $record->detailSalesOrders->map(function ($item) {
+                            return "{$item->product->name} ({$item->quantity} {$item->product->unit->unit})";
+                        })->toArray());
+                    })
+                    ->extraAttributes(['class' => 'whitespace-pre-wrap']),
 
                 DeliveryStatusColumn::make('delivery_status')
                     ->label('Status'),

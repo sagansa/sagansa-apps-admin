@@ -2,8 +2,6 @@
 
 namespace App\Support;
 
-use Illuminate\Support\Facades\Storage;
-
 class PublicStorageUrl
 {
     public static function from(?string $value): ?string
@@ -47,9 +45,14 @@ class PublicStorageUrl
         // Redirect mobile presence/readiness uploads to the API media server domain
         if (str_contains($path, 'presences/') || str_contains($path, 'readinesses/')) {
             $apiUrl = rtrim(env('API_URL', 'https://api.sagansa.id'), '/');
+
             return $apiUrl . '/media/' . $path;
         }
 
-        return Storage::disk('public')->url($path);
+        // Gambar lain disajikan dari image service (img.sagansa.id).
+        // File lama (yang sudah disalin ke image service) tetap pakai path yang sama.
+        $imgServiceUrl = rtrim((string) env('IMG_SERVICE_URL', 'https://img.sagansa.id'), '/');
+
+        return $imgServiceUrl . '/storage/' . $path;
     }
 }
