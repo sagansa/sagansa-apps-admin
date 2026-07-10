@@ -125,6 +125,12 @@ class AdminPanelProvider extends PanelProvider
 
     public function boot(): void
     {
+        // Sidebar menu search: filter item navigasi berdasarkan label.
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::SIDEBAR_NAV_START,
+            fn (): HtmlString => new HtmlString(view('filament.sidebar.search')->render()),
+        );
+
         // Override tampilan stacked-on-mobile: label & value di baris yang sama
         // (label kiri, value kanan, justify-between) untuk hemat tinggi baris.
         // Hanya berlaku di bawah breakpoint sm (mobile), desktop tetap tabel normal.
@@ -132,6 +138,10 @@ class AdminPanelProvider extends PanelProvider
             PanelsRenderHook::HEAD_END,
             fn (): HtmlString => new HtmlString(<<<'CSS'
             <style>
+                /* Sembunyikan elemen x-cloak sebelum Alpine inisialisasi
+                   (digunakan oleh sidebar search no-result message). */
+                [x-cloak] { display: none !important; }
+
                 /* Saat sidebar desktop dibuka, .fi-main-ctn (width:100vw) bisa
                    melebihi ruang tersisa (viewport - sidebar) sehingga sisi kanan
                    tabel terpotong oleh overflow-x:clip pada .fi-layout. min-width:0
