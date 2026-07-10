@@ -37,7 +37,7 @@ class InvoicePurchaseResource extends Resource
 {
     protected static ?string $model = InvoicePurchase::class;
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 30;
 
 
     protected static ?string $pluralLabel = 'Invoices';

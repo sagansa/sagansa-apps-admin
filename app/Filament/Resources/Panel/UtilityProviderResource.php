@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Panel;
 
-use App\Filament\Clusters\Transaction\Settings;
+use App\Filament\Clusters\Utilities;
 use App\Filament\Forms\BaseTextInput;
 use Filament\Forms;
 use Filament\Tables;
@@ -27,10 +27,10 @@ class UtilityProviderResource extends Resource
 
     // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
 
 
-    protected static ?string $cluster = Settings::class;
+    protected static ?string $cluster = Utilities::class;
 
     protected static ?string $pluralLabel = 'Utulity Providers';
 

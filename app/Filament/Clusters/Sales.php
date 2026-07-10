@@ -8,7 +8,7 @@ class Sales extends Cluster
 {
     protected static string|\UnitEnum|null $navigationGroup = 'Transaksi';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $slug = 'transaction/sales';
 }

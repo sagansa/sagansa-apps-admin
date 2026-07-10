@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Panel;
 
 use App\Filament\Bulks\ValidBulkAction;
-use App\Filament\Clusters\Stock;
+use App\Filament\Clusters\Utilities;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\StatusColumn;
 use App\Filament\Forms\ImageInput;
@@ -34,9 +34,9 @@ class UtilityUsageResource extends Resource
 
     // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 50;
 
-    protected static ?string $cluster = Stock::class;
+    protected static ?string $cluster = Utilities::class;
 
 
     public static function getModelLabel(): string

@@ -33,7 +33,7 @@ class ProductOnlineGroupResource extends Resource
 {
     protected static ?string $model = ProductOnlineGroup::class;
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $cluster = Settings::class;
 

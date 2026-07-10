@@ -2,8 +2,7 @@
 
 namespace App\Filament\Resources\Panel;
 
-use App\Filament\Clusters\Cashlesses;
-use App\Filament\Clusters\Transaction\Settings;
+use App\Filament\Clusters\Cashless;
 use App\Filament\Columns\ActiveColumn;
 use App\Filament\Forms\ActiveStatusSelect;
 use App\Filament\Forms\BaseTextInput;
@@ -30,9 +29,9 @@ class StoreCashlessResource extends Resource
 
     // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 40;
 
-    protected static ?string $cluster = Settings::class;
+    protected static ?string $cluster = Cashless::class;
 
 
     public static function getModelLabel(): string

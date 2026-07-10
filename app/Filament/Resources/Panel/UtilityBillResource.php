@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Panel;
 
-use App\Filament\Clusters\Purchases;
+use App\Filament\Clusters\Utilities;
 use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Forms\BaseSelect;
 use App\Filament\Forms\CurrencyInput;
@@ -29,9 +29,9 @@ class UtilityBillResource extends Resource
 
     // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 30;
 
-    protected static ?string $cluster = Purchases::class;
+    protected static ?string $cluster = Utilities::class;
 
     // protected static string|\UnitEnum|null $navigationGroup = 'Purchase';
 

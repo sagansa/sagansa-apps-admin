@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Panel;
 
-use App\Filament\Clusters\Purchases;
+use App\Filament\Clusters\Cash;
 use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\StatusColumn;
 use App\Filament\Forms\CurrencyInput;
@@ -38,9 +38,9 @@ class CashAdvanceResource extends Resource
 
     // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 40;
 
-    protected static ?string $cluster = Purchases::class;
+    protected static ?string $cluster = Cash::class;
 
 
     public static function getModelLabel(): string

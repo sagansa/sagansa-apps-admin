@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Panel;
 
-use App\Filament\Clusters\Purchases;
+use App\Filament\Clusters\Utilities;
 use App\Filament\Forms\BaseSelect;
 use App\Filament\Forms\CurrencyInput;
 use App\Filament\Forms\DateInput;
@@ -39,9 +39,9 @@ class FuelServiceResource extends Resource
 
     // protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 40;
 
-    protected static ?string $cluster = Purchases::class;
+    protected static ?string $cluster = Utilities::class;
 
     // protected static string|\UnitEnum|null $navigationGroup = 'Purchase';
 

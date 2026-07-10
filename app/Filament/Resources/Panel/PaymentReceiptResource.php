@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Panel;
 
 use App\Enum\PaymentFor;
 use App\Enum\PaymentType;
-use App\Filament\Clusters\Purchases;
+use App\Filament\Clusters\Cash;
 use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\SupplierColumn;
@@ -46,9 +46,9 @@ class PaymentReceiptResource extends Resource
 
     protected static ?string $model = PaymentReceipt::class;
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 50;
 
-    protected static ?string $cluster = Purchases::class;
+    protected static ?string $cluster = Cash::class;
 
     public static function getModelLabel(): string
     {
