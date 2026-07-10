@@ -126,6 +126,11 @@ class ReadinessResource extends Resource
                 StatusColumn::make('status'),
 
                 TextColumn::make('createdBy.name'),
+
+                TextColumn::make('created_at')
+                    ->label('Tanggal')
+                    ->date('d M Y H:i')
+                    ->sortable(),
             ])
             ->filters([
                 SelectEmployeeFilter::make('created_by_id'),
@@ -139,7 +144,7 @@ class ReadinessResource extends Resource
                     \Filament\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('id', 'desc');
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array
