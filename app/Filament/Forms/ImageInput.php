@@ -73,6 +73,9 @@ class ImageInput extends FileUpload
 
                         if ($response->successful()) {
                             $data = $response->json();
+                            \Illuminate\Support\Facades\Log::debug('ImageInput: upload response', [
+                                'data' => $data,
+                            ]);
                             @unlink($processedPath);
                             if (isset($data['path'])) {
                                 return $data['path'];
