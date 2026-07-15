@@ -84,21 +84,4 @@ class ClosingStore extends Model
             ' | ' . $this->date .
             ' | Rp ' . number_format($this->total_cash_transfer, 0, ',', '.');
     }
-
-    public static function boot()
-    {
-        parent::boot();
-
-        self::updated(function (ClosingStore $closingStore) {
-            if ($closingStore->is_attached) {
-                $closingStore->invoicePurchases()->update(['status' => 2]);
-                $closingStore->fuelServices()->update(['status' => 2]);
-                $closingStore->dailySalaries()->update(['status' => 2]);
-            } elseif(!$closingStore->is_attached) {
-                $closingStore->invoicePurchases()->update(['status' => 1]);
-                $closingStore->fuelServices()->update(['status' => 1]);
-                $closingStore->dailySalaries()->update(['status' => 1]);
-            }
-        });
-    }
 }
