@@ -126,6 +126,7 @@ class ProductResource extends Resource
                                 ->numeric()
                                 ->step(1)
                                 ->prefix('Rp')
+                                ->nullable()
                                 ->helperText('Harga ini akan digunakan jika jumlah pembelian tidak masuk ke dalam tier grosir apa pun.')
                                 ->visible(fn() => auth()->user()->hasRole(['super_admin', 'admin'])),
 
