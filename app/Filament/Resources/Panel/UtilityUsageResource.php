@@ -89,7 +89,7 @@ class UtilityUsageResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $utilityUsage = UtilityUsage::query();
+        $utilityUsage = UtilityUsage::query()->with(['utility', 'createdBy', 'approvedBy']);
 
         if (!Auth::user()->hasRole('admin')) {
             $utilityUsage->where('created_by_id', Auth::id());
@@ -101,7 +101,7 @@ class UtilityUsageResource extends Resource
             ->columns([
                 ImageOpenUrlColumn::make('image')
                     ->visibility('public')
-                    ->url(fn($record) => PublicStorageUrl::from($record->image)),
+                    ->url(fn (UtilityUsage $record) => PublicStorageUrl::from($record->image)),
 
                 TextColumn::make('created_at')
                     ->sortable()
@@ -121,11 +121,7 @@ class UtilityUsageResource extends Resource
 
                 SelectFilter::make('utility_id')
                     ->label('Utility')
-                    ->relationship(
-                        name: 'utility',
-                        titleAttribute: 'utility_name',
-                        modifyQueryUsing: fn (Builder $query) => $query,
-                    )
+                    ->relationship(name: 'utility', titleAttribute: 'name')
                     ->getOptionLabelFromRecordUsing(fn (Utility $record) => "{$record->utility_name}"),
 
             ])
@@ -140,7 +136,8 @@ class UtilityUsageResource extends Resource
                     \Filament\Actions\DeleteBulkAction::make(),
                     ValidBulkAction::make('setStatusToValid')
                         ->action(function (Collection $records) {
-                            UtilityUsage::whereIn('id', $records->pluck('id'))->update(['status' => 2]);
+                            UtilityUsage::whereIn('id', $records->pluck('id'))
+                                ->update(['status' => UtilityUsage::STATUS_VALID]);
                         }),
                 ]),
             ])

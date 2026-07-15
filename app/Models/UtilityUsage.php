@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class UtilityUsage extends Model
 {
+    const STATUS_BELUM_DIPERIKSA = 1;
+    const STATUS_VALID = 2;
+    const STATUS_DIPERBAIKI = 3;
+    const STATUS_PERIKSA_ULANG = 4;
 
     protected $connection = 'mysql';
     use HasFactory;

@@ -154,9 +154,9 @@ class StorageStockResource extends Resource
     {
         return [
             'index' => Pages\ListStorageStocks::route('/'),
-            // 'create' => Pages\CreateStorageStock::route('/create'),
-            // 'view' => Pages\ViewStorageStock::route('/{record}'),
-            // 'edit' => Pages\EditStorageStock::route('/{record}/edit'),
+            'create' => Pages\CreateStorageStock::route('/create'),
+            'view' => Pages\ViewStorageStock::route('/{record}'),
+            'edit' => Pages\EditStorageStock::route('/{record}/edit'),
         ];
     }
 

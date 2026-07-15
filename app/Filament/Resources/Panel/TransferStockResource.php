@@ -93,10 +93,19 @@ class TransferStockResource extends Resource
 
                     StatusSelectInput::make('status'),
 
+                    BaseSelect::make('sent_by_id')
+                        ->label('Dikirim Oleh')
+                        ->relationship('sentBy', 'name', fn (Builder $query) => $query
+                            ->whereHas('roles', fn (Builder $q) => $q
+                                ->where('name', 'staff')))
+                        ->default(fn () => Auth::user()->hasRole('staff') ? Auth::id() : null)
+                        ->required()
+                        ->searchable(),
+
                     BaseSelect::make('received_by_id')
                         ->relationship('receivedBy', 'name', fn (Builder $query) => $query
                             ->whereHas('roles', fn (Builder $q) => $q
-                                ->whereIn('name', ['staff', 'supervisor'])))
+                                ->where('name', 'staff')))
                         ->searchable(),
 
                 ]),
