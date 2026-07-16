@@ -14,6 +14,9 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Tables\Columns\ToggleColumn;
+use App\Filament\Columns\ActiveColumn;
 use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\Panel\RoomResource\Pages;
 use App\Filament\Resources\Panel\RoomResource\RelationManagers;
@@ -54,6 +57,11 @@ class RoomResource extends Resource
                         ->required()
                         ->string()
                         ->autofocus(),
+                    Toggle::make('is_active')
+                        ->label('Aktif')
+                        ->default(true)
+                        ->onColor('success')
+                        ->offColor('danger'),
                 ]),
             ]),
         ]);
@@ -63,7 +71,14 @@ class RoomResource extends Resource
     {
         return $table
             ->poll('60s')
-            ->columns([TextColumn::make('name')])
+            ->columns([
+                TextColumn::make('name'),
+                ActiveColumn::make('is_active'),
+                ToggleColumn::make('is_active')
+                    ->label('Aktif')
+                    ->onColor('success')
+                    ->offColor('danger'),
+            ])
             ->filters([])
             ->actions([
                 ActionGroup::make([
