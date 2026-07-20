@@ -83,6 +83,30 @@ class Product extends Model
         return $this->hasMany(ProductionTo::class);
     }
 
+    /**
+     * Resep master yang menghasilkan produk ini sebagai output.
+     */
+    public function recipes()
+    {
+        return $this->hasMany(Recipe::class, 'product_id');
+    }
+
+    /**
+     * Resep aktif untuk produk ini (hanya satu yang aktif per produk).
+     */
+    public function activeRecipe()
+    {
+        return $this->hasOne(Recipe::class, 'product_id')->where('is_active', true);
+    }
+
+    /**
+     * Baris ingredient di resep lain (jika produk ini dipakai sebagai bahan baku).
+     */
+    public function recipeIngredients()
+    {
+        return $this->hasMany(RecipeIngredient::class, 'product_id');
+    }
+
     public function remainingStocks()
     {
         return $this->belongsToMany(RemainingStock::class);
