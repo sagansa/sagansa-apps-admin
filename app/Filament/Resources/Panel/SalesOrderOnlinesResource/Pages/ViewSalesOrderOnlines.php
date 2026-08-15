@@ -19,6 +19,13 @@ class ViewSalesOrderOnlines extends ViewRecord
 {
     protected static string $resource = SalesOrderOnlinesResource::class;
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\EditAction::make(),
+        ];
+    }
+
     public function infolist(Schema $infolist): Schema
     {
         return $infolist
@@ -31,7 +38,7 @@ class ViewSalesOrderOnlines extends ViewRecord
                                     TextEntry::make('store.nickname'),
                                     TextEntry::make('delivery_date'),
                                     TextEntry::make('onlineShopProvider.name'),
-                                    TextEntry::make('deliveryService.name'),
+                                    TextEntry::make('deliveryService.name'),;
                                     TextEntry::make('deliveryAddress.name'),
                                     ImageEntry::make('image_payment')
                                         ->size(40)
@@ -51,7 +58,6 @@ class ViewSalesOrderOnlines extends ViewRecord
                                 ]),
                             ]),
                     ]),
-
 
                 Section::make('Detail Order')
                     ->schema([
@@ -73,4 +79,5 @@ class ViewSalesOrderOnlines extends ViewRecord
                         ]),
                 ]);
     }
+}
 }

@@ -12,8 +12,7 @@ class PaymentTypeSeeder extends Seeder
      */
     public function run(): void
     {
-        PaymentType::factory()
-            ->count(5)
-            ->create();
+        PaymentType::updateOrCreate(['id' => 1], ['name' => 'transfer', 'status' => 1]);
+        PaymentType::updateOrCreate(['id' => 2], ['name' => 'tunai', 'status' => 1]);
     }
 }

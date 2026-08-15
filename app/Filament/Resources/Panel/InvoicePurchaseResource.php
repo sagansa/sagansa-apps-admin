@@ -244,7 +244,7 @@ class InvoicePurchaseResource extends Resource
                     titleAttribute: 'name',
                     modifyQueryUsing: fn (Builder $query) => $query->where('status', '1'),
                 )
-                ->default(2)
+                ->default(PaymentType::Cash->value)
                 ->inlineLabel()
                 ->preload(),
                 // ->afterStateUpdated(function (Set $set) {
@@ -300,14 +300,11 @@ class InvoicePurchaseResource extends Resource
                                     $paymentTypeFilter = '2';
                                 }
 
-                                $queryFinal = $query
-                                    ->where('store_id', $storeId)
-                                    ->where('status', '4') // Hanya yang sudah approved oleh admin
-                                    ->when($paymentTypeFilter, function ($query) use ($paymentTypeFilter) {
-                                        $query->where('payment_type_id', $paymentTypeFilter);
-                                    })
-                                    ->orderBy('id', 'desc');
-                            return $queryFinal;
+                                    return $query
+                                        ->where('store_id', $storeId)
+                                        ->where('status', '4')
+                                        ->when(filled($paymentTypeId), fn ($q) => $q->where('payment_type_id', $paymentTypeId))
+                                        ->orderBy('id', 'desc');
                         }
                     )
                     ->getOptionLabelFromRecordUsing(fn (DetailRequest $record) => "{$record->detail_request_name}")

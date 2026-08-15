@@ -242,19 +242,40 @@ class SalesOrderOnlinesResource extends Resource
                     ->collapsed()
                     ->columnSpanFull(),
             ])
-            ->actions([
-                ActionGroup::make([
-                    \Filament\Actions\EditAction::make()
-                        ->visible(fn(SalesOrderOnline $record) => !in_array($record->delivery_status, [2, 3, 6])),
-                    \Filament\Actions\ViewAction::make()
-                        ->visible(fn(SalesOrderOnline $record) => in_array($record->delivery_status, [2, 3, 6])),
-                    DeleteAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
-                    RestoreAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
-                    ForceDeleteAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                ->actions([
+                    ActionGroup::make([
+                        \Filament\Actions\EditAction::make()
+                            ->visible(fn(SalesOrderOnline $record) => !in_array($record->delivery_status, [2, 3, 6])),
+                        \Filament\Actions\ViewAction::make()
+                            ->visible(fn(SalesOrderOnline $record) => in_array($record->delivery_status, [2, 3, 6])),
+                        DeleteAction::make()
+                            ->visible(fn () => Auth::user()->hasRole('admin')),
+                        RestoreAction::make()
+                            ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ForceDeleteAction::make()
+                            ->visible(fn () => Auth::user()->hasRole('admin')),
+                        \Filament\Actions\Action::make('updateDeliveryStatus')
+                            ->label('Ubah Status')
+                            ->icon('heroicon-o-pencil-square')
+                            ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('staff'))
+                            ->fillForm(fn (SalesOrderOnline $record): array => [
+                                'delivery_status' => (string) $record->delivery_status,
+                            ])
+                            ->form([
+                                Select::make('delivery_status')
+                                    ->label('Delivery Status')
+                                    ->required()
+                                    ->options([
+                                        '1' => 'belum dikirim', '2' => 'valid', '3' => 'sudah dikirim',
+                                        '4' => 'siap dikirim', '5' => 'perbaiki', '6' => 'dikembalikan',
+                                    ]),
+                            ])
+                            ->action(function (SalesOrderOnline $record, array $data): void {
+                                $record->update(['delivery_status' => $data['delivery_status']]);
+                            }),
+                    ])
                 ])
+                ->recordUrl(fn (SalesOrderOnline $record) => static::getUrl('view', ['record' => $record]))
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

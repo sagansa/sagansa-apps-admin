@@ -23,9 +23,9 @@ class ReadinessFactory extends Factory
     public function definition(): array
     {
         return [
-            'image_selfie' => fake()->text(255),
-            'left_hand' => fake()->text(255),
-            'right_hand' => fake()->text(255),
+            'image_selfie' => null,
+            'left_hand' => null,
+            'right_hand' => null,
             'status' => fake()->word(),
             'notes' => fake()->text(),
             'approved_by_id' => \App\Models\User::factory(),

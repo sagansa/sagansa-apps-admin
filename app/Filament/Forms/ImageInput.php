@@ -92,15 +92,21 @@ class ImageInput extends FileUpload
                             'message' => $e->getMessage(),
                         ]);
                     }
-                } else {
-                    \Illuminate\Support\Facades\Log::warning('ImageInput: IMAGE_SERVICE_TOKEN not configured. Uploading to local storage.');
+
+                    // Do not silently fall back to local storage: the URL resolver
+                    // always points to img.sagansa.id, so local paths would 404.
+                    @unlink($processedPath);
+
+                    throw new \RuntimeException(
+                        'Gagal mengunggah gambar ke layanan img. Pastikan IMAGE_SERVICE_TOKEN sudah dikonfigurasi dengan benar.'
+                    );
                 }
 
-                // Fallback to local storage
-                $path = $newFile->store($this->getDirectory(), $this->getDiskName());
                 @unlink($processedPath);
 
-                return $path;
+                throw new \RuntimeException(
+                    'IMAGE_SERVICE_TOKEN belum dikonfigurasi. Unggahan gambar tidak dapat diproses.'
+                );
             })
             ->deleteUploadedFileUsing(function ($file) {
                 $token = config('services.image.api_token');

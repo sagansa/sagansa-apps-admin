@@ -23,7 +23,16 @@ class SalesOrderOnlinePolicy
      */
     public function view(User $user, SalesOrderOnline $salesOrderOnline): bool
     {
-        return $user->can('view_panel::sales::order::onlines') && $salesOrderOnline->delivery_status === 3;
+        return $user->can('view_panel::sales::order::onlines');
+    }
+
+    /**
+     * Determine whether the user can update the model.
+     */
+    public function update(User $user, SalesOrderOnline $salesOrderOnline): bool
+    {
+        return $user->can('update_panel::sales::order::onlines')
+            && !in_array($salesOrderOnline->delivery_status, [2, 3, 6]);
     }
 
     /**
