@@ -276,7 +276,6 @@ class SalesOrderOnlinesResource extends Resource
                     ])
                 ])
                 ->recordUrl(fn (SalesOrderOnline $record) => static::getUrl('view', ['record' => $record]))
-            ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
