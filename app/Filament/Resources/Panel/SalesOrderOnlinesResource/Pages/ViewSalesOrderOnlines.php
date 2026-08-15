@@ -38,7 +38,7 @@ class ViewSalesOrderOnlines extends ViewRecord
                                     TextEntry::make('store.nickname'),
                                     TextEntry::make('delivery_date'),
                                     TextEntry::make('onlineShopProvider.name'),
-                                    TextEntry::make('deliveryService.name'),;
+                                    TextEntry::make('deliveryService.name'),
                                     TextEntry::make('deliveryAddress.name'),
                                     ImageEntry::make('image_payment')
                                         ->size(40)
@@ -79,5 +79,4 @@ class ViewSalesOrderOnlines extends ViewRecord
                         ]),
                 ]);
     }
-}
 }

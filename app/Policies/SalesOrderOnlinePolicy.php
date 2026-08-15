@@ -44,14 +44,6 @@ class SalesOrderOnlinePolicy
     }
 
     /**
-     * Determine whether the user can update the model.
-     */
-    public function update(User $user, SalesOrderOnline $salesOrderOnline): bool
-    {
-        return $user->can('update_panel::sales::order::onlines') && $salesOrderOnline->delivery_status !== 3;
-    }
-
-    /**
      * Determine whether the user can delete the model.
      */
     public function delete(User $user, SalesOrderOnline $salesOrderOnline): bool
