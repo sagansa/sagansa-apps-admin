@@ -12,7 +12,13 @@ class PrintPaymentProofSalesOrderOnlines extends ViewRecord
 {
     protected static string $resource = SalesOrderOnlinesResource::class;
 
-    public SalesOrderOnline $record;
+    /**
+     * $record tidak boleh dideklarasi ulang di sini: PHP mensyaratkan tipe
+     * properti turunan identik dengan parent (ViewRecord mendeklarasikan
+     * Model|string|int|null). Setelah mount() ia selalu SalesOrderOnline.
+     *
+     * @var SalesOrderOnline
+     */
 
     protected function getTableQuery(): ?\Illuminate\Database\Query\Builder
     {
