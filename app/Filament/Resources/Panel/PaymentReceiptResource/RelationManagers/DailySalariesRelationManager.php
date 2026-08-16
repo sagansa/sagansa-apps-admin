@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\RelationManagers\RelationManager;
 use App\Filament\Resources\Panel\PaymentReceiptResource;
-use App\Models\DailySalary;
 use Filament\Actions\CreateAction;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Illuminate\Database\Eloquent\Model;
@@ -57,10 +56,10 @@ class DailySalariesRelationManager extends RelationManager
 
                 Select::make('status')
                     ->options([
-                        '1' => 'belum diperiksa',
-                        '2' => 'siap dibayar',
-                        '3' => 'dibayar',
-                        '4' => 'tidak valid'
+                        '1' => 'belum dibayar',
+                        '2' => 'sudah dibayar',
+                        '3' => 'siap dibayar',
+                        '4' => 'perbaiki'
                     ])
                     ->required()
                     ->preload(),
@@ -88,9 +87,7 @@ class DailySalariesRelationManager extends RelationManager
                     ->preloadRecordSelect()
                     ->multiple()
                     ->recordSelectSearchColumns(['createdBy.name', 'date', 'amount'])
-                    ->using(function (Builder $query) {
-                        DailySalary::forPaymentType(1)->apply($query);
-                    })
+                    ->recordSelectOptionsQuery(fn (Builder $query) => $query->forPaymentType(1))
                     ->recordTitle(function ($record) {
                         return "{$record->paymentType->name} | {$record->createdBy->name} | {$record->date} | Rp " . number_format($record->amount, 0, ',', '.');
                     }),

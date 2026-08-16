@@ -20,6 +20,7 @@ use App\Filament\Resources\Panel\DailySalaryResource\Pages;
 use App\Filament\Tables\DailySalaryTable;
 use App\Models\PaymentType;
 use Filament\Actions\ActionGroup;
+use Filament\Resources\RelationManagers\RelationGroup;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -166,7 +167,11 @@ class DailySalaryResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationGroup::make('', [
+                DailySalaryResource\RelationManagers\PaymentReceiptsRelationManager::class,
+            ]),
+        ];
     }
 
     public static function getPages(): array

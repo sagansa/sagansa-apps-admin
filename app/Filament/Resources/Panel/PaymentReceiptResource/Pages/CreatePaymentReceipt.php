@@ -128,22 +128,22 @@ class CreatePaymentReceipt extends CreateRecord
     }
 
     /**
-     * Tandai daily salary sebagai sudah dibayar hanya jika saat ini masih "siap dibayar" (status=3).
+     * Tandai daily salary sebagai sudah dibayar hanya jika saat ini masih
+     * "belum dibayar" (status=1) atau "siap dibayar" (status=3).
      */
     private function markDailySalariesPaid(PaymentReceipt $record): void
     {
-        $readyStatus = '3'; // siap dibayar
         $paidStatus = '2';  // sudah dibayar
 
         foreach ($record->dailySalaries as $dailySalary) {
             $updated = \App\Models\DailySalary::query()
                 ->whereKey($dailySalary->id)
-                ->where('status', $readyStatus)
+                ->whereIn('status', ['1', '3']) // Belum dibayar / siap dibayar
                 ->update(['status' => $paidStatus]);
 
             if ($updated === 0) {
                 throw new \RuntimeException(
-                    "Daily salary #{$dailySalary->id} sudah tidak berstatus 'siap dibayar'."
+                    "Daily salary #{$dailySalary->id} sudah tidak berstatus 'belum dibayar' atau 'siap dibayar'."
                 );
             }
         }

@@ -15,7 +15,7 @@ class DailySalaryPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_panel::daily::salary');
+        return $user->can('view_any_panel::daily::salary') || $user->hasRole('staff');
     }
 
     /**
@@ -31,7 +31,7 @@ class DailySalaryPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_panel::daily::salary');
+        return $user->can('create_panel::daily::salary') || $user->hasRole('staff');
     }
 
     /**

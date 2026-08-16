@@ -266,7 +266,7 @@ class PaymentReceiptResource extends Resource
 
                 $salaries = DailySalary::whereIn('created_by_id', $targetIds)
                     ->where('payment_type_id', PaymentType::Transfer->value)
-                    ->where('status', '3')
+                    ->whereIn('status', ['1', '3'])
                     ->get(['id', 'amount']);
 
                 $set('dailySalaries', $salaries->pluck('id')->toArray());
@@ -290,7 +290,7 @@ class PaymentReceiptResource extends Resource
                         'store',
                     ])
                     ->where('payment_type_id', PaymentType::Transfer->value)
-                    ->where('status', '3')
+                    ->whereIn('status', ['1', '3'])
                     ->when(
                         $get('user_id'),
                         fn ($q, $uid) => $q->whereIn('created_by_id', self::resolveUserIdentifier($uid))
