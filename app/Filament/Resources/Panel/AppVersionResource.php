@@ -50,8 +50,11 @@ class AppVersionResource extends Resource
                     Select::make('app_name')
                         ->required()
                         ->options([
-                            'presence' => 'Presence App (Absensi)',
-                            'point_of_sale' => 'Point of Sale (Kasir)',
+                            // Keys must match RequireAppVersion middleware params in api-mobile
+                            'attendance' => 'Sagansa Attendance (Absensi)',
+                            'pos' => 'Sagansa POS (Kasir)',
+                            'presence' => 'Presence App (Absensi) - legacy',
+                            'point_of_sale' => 'Point of Sale (Kasir) - legacy',
                             'admin' => 'Admin Mobile',
                         ])
                         ->native(false),
@@ -73,6 +76,12 @@ class AppVersionResource extends Resource
                         ->acceptedFileTypes(['application/vnd.android.package-archive'])
                         ->nullable()
                         ->downloadable(),
+
+                    TextInput::make('store_url')
+                        ->label('Store URL (iOS/App Store)')
+                        ->url()
+                        ->placeholder('https://apps.apple.com/app/id...')
+                        ->nullable(),
 
                     Toggle::make('is_active')
                         ->label('Active')
@@ -101,6 +110,8 @@ class AppVersionResource extends Resource
                 TextColumn::make('app_name')
                     ->formatStateUsing(
                         fn(string $state): string => match ($state) {
+                            'attendance' => 'Sagansa Attendance (Absensi)',
+                            'pos' => 'Sagansa POS (Kasir)',
                             'presence' => 'Presence (Absensi)',
                             'point_of_sale' => 'Point of Sale (Kasir)',
                             'admin' => 'Admin Mobile',
