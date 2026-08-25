@@ -10,20 +10,9 @@ class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
-    protected ?array $pendingRoles = null;
-
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        $this->pendingRoles = $data['roles'] ?? [];
-        unset($data['roles']);
-
-        return $data;
-    }
-
-    protected function afterSave(): void
-    {
-        $this->record->syncRoles($this->pendingRoles ?? []);
-    }
+    // Kolom "roles" adalah Select relationship multiple: Filament menyinkronkan
+    // pivot-nya sendiri saat getState(). Jangan syncRoles manual dari $data
+    // karena nilai kolom tersebut tidak pernah ter-dehydrate ke $data.
 
     protected function getHeaderActions(): array
     {

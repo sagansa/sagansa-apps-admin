@@ -57,7 +57,11 @@ class UserResource extends Resource
                     TextInput::make('email')
                         ->required()
                         ->string()
-                        ->unique('users', 'email', ignoreRecord: true)
+                        // Model User memakai koneksi `mysql_auth`. Tanpa prefix
+                        // koneksi, validasi unique jalan di koneksi default
+                        // (mysql) dan gagal karena kolom ignore memakai
+                        // `sagansa_user`.`users`.`id`.
+                        ->unique('mysql_auth.users', 'email', ignoreRecord: true)
                         ->email(),
 
                     TextInput::make('password')
