@@ -19,6 +19,11 @@ use App\Models\DeliveryAddress;
 use App\Models\TransferToAccount;
 use App\Models\SalesOrderEmployee;
 use App\Support\PublicStorageUrl;
+use App\Support\SalesTotalPrice;
+use Filament\Support\Enums\FontWeight;
+use Filament\Notifications\Notification;
+use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
@@ -31,6 +36,7 @@ use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Filament\Tables\Columns\Summarizers\Sum;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 
 class SalesOrderEmployeesResource extends Resource
 {
@@ -62,7 +68,9 @@ class SalesOrderEmployeesResource extends Resource
                 ->columnSpan(['lg' => 1]),
         ])
         ->columns(3)
-        ->disabled(fn (?SalesOrderEmployee $record) => $record !== null && $record->payment_status == 2);
+        ->disabled(fn (?SalesOrderEmployee $record) => $record !== null
+            && $record->payment_status == 2
+            && !Auth::user()->hasRole('super_admin'));
     }
 
     public static function table(Table $table): Table
@@ -89,6 +97,53 @@ class SalesOrderEmployeesResource extends Resource
                 TextColumn::make('delivery_date')
                     ->label('Date'),
 
+                CurrencyColumn::make('detailSalesOrders.subtotal_price')
+                    ->label('Subtotal Produk')
+                    ->state(fn (SalesOrderEmployee $record) => $record->detailSalesOrders->sum('subtotal_price'))
+                    ->description(fn (?SalesOrderEmployee $record): string => $record ? $record->detailSalesOrders->count() . ' item' : '')
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
+                CurrencyColumn::make('shipping_cost')
+                    ->label('Ongkir')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
+                CurrencyColumn::make('total_price')
+                    ->label('Total Price')
+                    ->weight(FontWeight::Bold)
+                    ->sortable()
+                    ->color(fn (?SalesOrderEmployee $record): ?string => $record && SalesTotalPrice::isMismatched($record) ? 'danger' : null)
+                    ->icon(fn (?SalesOrderEmployee $record): ?string => $record && SalesTotalPrice::isMismatched($record) ? 'heroicon-m-exclamation-triangle' : null)
+                    ->iconPosition('after')
+                    ->description(function (?SalesOrderEmployee $record): string {
+                        if ($record === null) {
+                            return '';
+                        }
+
+                        $rupiah = fn (int $n): string => number_format($n, 0, ',', '.');
+
+                        return SalesTotalPrice::isMismatched($record)
+                            ? "seharusnya Rp {$rupiah(SalesTotalPrice::expectedTotal($record))}"
+                            : "produk Rp {$rupiah($record->detailSalesOrders->sum('subtotal_price'))} + ongkir Rp {$rupiah((int) ($record->shipping_cost ?? 0))}";
+                    })
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
                 DeliveryAddressColumn::make('deliveryAddress')
                     ->label('Customer'),
 
@@ -105,35 +160,6 @@ class SalesOrderEmployeesResource extends Resource
                     })
                     ->extraAttributes(['class' => 'whitespace-pre-wrap']),
 
-                CurrencyColumn::make('shipping_cost')
-                    ->label('Ongkir')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->summarize(Sum::make()
-                        ->numeric(
-                            thousandsSeparator: '.'
-                        )
-                        ->label('')
-                        ->prefix('Rp ')),
-
-                CurrencyColumn::make('detailSalesOrders.subtotal_price')
-                    ->label('Subtotal Produk')
-                    ->state(fn (SalesOrderEmployee $record) => $record->detailSalesOrders->sum('subtotal_price'))
-                    ->summarize(Sum::make()
-                        ->numeric(
-                            thousandsSeparator: '.'
-                        )
-                        ->label('')
-                        ->prefix('Rp ')),
-
-                CurrencyColumn::make('total_price')
-                    ->label('Total Price')
-                    ->summarize(Sum::make()
-                        ->numeric(
-                            thousandsSeparator: '.'
-                        )
-                        ->label('')
-                        ->prefix('Rp ')),
-
                 PaymentStatusColumn::make('payment_status')
                     ->label('Payment Status'),
 
@@ -149,22 +175,60 @@ class SalesOrderEmployeesResource extends Resource
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
                     \Filament\Actions\ViewAction::make(),
+                    Action::make('recalculateTotalPrice')
+                        ->label('Hitung Ulang Total')
+                        ->icon('heroicon-m-arrow-path')
+                        ->color('warning')
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
+                        ->requiresConfirmation()
+                        ->modalHeading('Hitung ulang total price')
+                        ->modalDescription(fn (SalesOrderEmployee $record): string => 'Total akan disamakan dengan Σ subtotal produk + ongkir '
+                            . '(Rp ' . number_format(SalesTotalPrice::expectedTotal($record), 0, ',', '.') . '). '
+                            . 'Total tersimpan saat ini: Rp ' . number_format((int) ($record->total_price ?? 0), 0, ',', '.') . '.')
+                        ->action(function (SalesOrderEmployee $record): void {
+                            $total = SalesTotalPrice::recalculate($record);
+
+                            Notification::make()
+                                ->title('Total price diperbarui')
+                                ->body('Total baru: Rp ' . number_format($total, 0, ',', '.'))
+                                ->success()
+                                ->send();
+                        }),
                     \Filament\Actions\DeleteAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
                     \Filament\Actions\RestoreAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
                     \Filament\Actions\ForceDeleteAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
                 ])
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
                     \Filament\Actions\RestoreBulkAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
                     \Filament\Actions\ForceDeleteBulkAction::make()
-                        ->visible(fn () => Auth::user()->hasRole('admin')),
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
+                    BulkAction::make('recalculateTotalPrice')
+                        ->label('Hitung Ulang Total')
+                        ->icon('heroicon-m-arrow-path')
+                        ->color('warning')
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
+                        ->requiresConfirmation()
+                        ->modalHeading('Hitung ulang total price')
+                        ->modalDescription('Total semua order terpilih akan disamakan dengan Σ subtotal produk + ongkir.')
+                        ->action(function (Collection $records): void {
+                            foreach ($records as $record) {
+                                SalesTotalPrice::recalculate($record);
+                            }
+
+                            Notification::make()
+                                ->title('Total price diperbarui')
+                                ->body(number_format($records->count()) . ' order disamakan dengan rumus subtotal produk + ongkir.')
+                                ->success()
+                                ->send();
+                        }),
                 ]),
             ])
             ->defaultSort('delivery_date', 'desc');

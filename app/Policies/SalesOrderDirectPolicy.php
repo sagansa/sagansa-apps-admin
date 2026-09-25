@@ -39,6 +39,11 @@ class SalesOrderDirectPolicy
      */
     public function update(User $user, SalesOrderDirect $salesOrderDirect): bool
     {
+        // super_admin adalah akses darurat: boleh mengedit order terkunci sekalipun
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
         return $user->can('update_panel::sales::order::directs') && $salesOrderDirect->delivery_status !== 3;
     }
 

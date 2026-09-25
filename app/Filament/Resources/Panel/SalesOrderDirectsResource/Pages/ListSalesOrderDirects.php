@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Panel\SalesOrderDirectsResource\Pages;
 
 use App\Filament\Resources\Panel\SalesOrderDirectsResource;
+use App\Models\SalesOrderDirect;
+use App\Support\SalesTotalPrice;
 use Filament\Actions;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Resources\Pages\ListRecords;
@@ -33,6 +35,14 @@ class ListSalesOrderDirects extends ListRecords
             'siap dikirim' => Tab::make()->query(fn ($query) => $query->where('delivery_status', '4')),
             'perbaiki' => Tab::make()->query(fn ($query) => $query->where('delivery_status', '5')),
             'dikembalikan' => Tab::make()->query(fn ($query) => $query->where('delivery_status', '6')),
+            'anomali total' => Tab::make()
+                ->label('Anomali Total')
+                ->icon('heroicon-m-exclamation-triangle')
+                ->badge(fn (): int => SalesTotalPrice::applyMismatchScope(
+                    SalesOrderDirect::query()->where('for', 1)
+                )->count())
+                ->badgeColor('danger')
+                ->query(fn ($query) => SalesTotalPrice::applyMismatchScope($query)),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Filters;
 
+use App\Support\SalesTotalPrice;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -20,11 +21,9 @@ class TotalPriceFilter extends SelectFilter
                 'tidak_cocok' => 'Anomali: total ≠ Σ subtotal produk + ongkir',
             ])
             ->query(function (Builder $query, array $data): Builder {
-                $table = $query->getModel()->getTable();
-
+                // total_price memuat ongkir, jadi keberadaan produk
+                // tidak bisa disimpulkan dari nilainya — cek detail item.
                 return match ($data['value'] ?? null) {
-                    // total_price memuat ongkir, jadi keberadaan produk
-                    // tidak bisa disimpulkan dari nilainya — cek detail item.
                     'ada_produk' => $query->whereHas('detailSalesOrders'),
                     'tanpa_produk' => $query->doesntHave('detailSalesOrders'),
                     'total_nol' => $query->where(
@@ -32,13 +31,7 @@ class TotalPriceFilter extends SelectFilter
                             ->where('total_price', 0)
                             ->orWhereNull('total_price')
                     ),
-                    'tidak_cocok' => $query->whereRaw(
-                        "COALESCE(`{$table}`.`total_price`, -1) "
-                        . '<> COALESCE(('
-                        . "SELECT SUM(`detail`.`subtotal_price`) FROM `detail_sales_orders` AS `detail` "
-                        . "WHERE `detail`.`sales_order_id` = `{$table}`.`id`"
-                        . '), 0) + COALESCE(`' . $table . '`.`shipping_cost`, 0)'
-                    ),
+                    'tidak_cocok' => SalesTotalPrice::applyMismatchScope($query),
                     default => $query,
                 };
             });

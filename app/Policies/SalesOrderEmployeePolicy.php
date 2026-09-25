@@ -39,6 +39,11 @@ class SalesOrderEmployeePolicy
      */
     public function update(User $user, SalesOrderEmployee $salesOrderEmployee): bool
     {
+        // super_admin adalah akses darurat: boleh mengedit order terkunci sekalipun
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
         return $user->can('update_panel::sales::order::employees') && $salesOrderEmployee->payment_status !== 2;
     }
 
