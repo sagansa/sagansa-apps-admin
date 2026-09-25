@@ -3,6 +3,8 @@
 namespace App\Filament\Forms;
 
 use Filament\Forms\Components\{RichEditor, TextInput};
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 
 class BottomTotalPriceForm
 {
@@ -12,12 +14,14 @@ class BottomTotalPriceForm
 
             CurrencyInput::make('shipping_cost')
                 ->label('Shipping Cost')
-                ->reactive(),
+                ->live(debounce: 500)
+                ->afterStateUpdated(function (Get $get, Set $set) {
+                    SalesProductForm::updateTotalPriceFromRoot($get, $set);
+                }),
 
             CurrencyInput::make('total_price')
                 ->label('Total Price')
-                ->readOnly()
-                ->reactive(),
+                ->readOnly(),
 
             Notes::make('notes'),
 

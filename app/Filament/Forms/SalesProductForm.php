@@ -13,12 +13,31 @@ use Illuminate\Support\Facades\Auth;
 
 class SalesProductForm
 {
+    public static function parseCurrency(mixed $val): int
+    {
+        if ($val === null || $val === '') {
+            return 0;
+        }
+        if (is_int($val)) {
+            return $val;
+        }
+        if (is_float($val)) {
+            return (int) round($val);
+        }
+        $digits = preg_replace('/[^\d]/', '', (string) $val);
+        return $digits !== '' ? (int) $digits : 0;
+    }
+
     public static function getItemsRepeater(): Repeater
     {
         return Repeater::make('detailSalesOrders')
             ->label('')
             ->minItems(1)
             ->relationship()
+            ->live()
+            ->afterStateUpdated(function (Get $get, Set $set) {
+                self::updateTotalPriceFromRoot($get, $set);
+            })
             ->schema([
 
                 Select::make('product_id')
@@ -33,7 +52,16 @@ class SalesProductForm
                             return $product->name;
                     }))
                     ->required()
-                    ->reactive()
+                    ->live()
+                    ->afterStateUpdated(function ($state, Get $get, Set $set) {
+                        if ($state) {
+                            $product = Product::find($state);
+                            if ($product && filled($product->online_price)) {
+                                $set('unit_price', (int) $product->online_price);
+                            }
+                        }
+                        self::updateSubtotalAndTotal($get, $set);
+                    })
                     ->disableOptionsWhenSelectedInSiblingRepeaterItems()
                     ->columnSpan([
                         'md' => 4,
@@ -47,28 +75,26 @@ class SalesProductForm
                     ->default(1)
                     ->minValue(1)
                     ->required()
-                    ->debounce(2000)
+                    ->live(debounce: 500)
                     ->columnSpan([
                         'md' => 2,
                     ])
-                    ->reactive()
                     ->suffix(function (Get $get) {
                         $product = Product::find($get('product_id'));
                         return $product ? $product->unit->unit : '';
                     })
                     ->afterStateUpdated(function (Get $get, Set $set) {
-                        self::updateSubtotalPrice($get, $set);
-                        self::updateTotalPrice($get, $set);
+                        self::updateSubtotalAndTotal($get, $set);
                     }),
 
                 CurrencyRepeaterInput::make('unit_price')
                     ->placeholder('Unit Price')
+                    ->live(debounce: 500)
                     ->columnSpan([
                         'md' => 2,
                     ])
                     ->afterStateUpdated(function (Get $get, Set $set) {
-                        self::updateSubtotalPrice($get, $set);
-                        self::updateTotalPrice($get, $set);
+                        self::updateSubtotalAndTotal($get, $set);
                     }),
 
                 CurrencyRepeaterInput::make('subtotal_price')
@@ -81,59 +107,66 @@ class SalesProductForm
                 ])
                 ->columns([
                 'md' => 10,
-            ])
-            ->afterStateUpdated(function (Get $get, Set $set) {
-                self::updateTotalPrice($get, $set);
-            });
-            // ->deletable(fn ($record) => (auth()->user()->hasRole('admin') || auth()->user()->hasRole('super_admin')));
+            ]);
     }
 
-    protected static function updateSubtotalPrice(Get $get, Set $set): void
+    public static function updateSubtotalAndTotal(Get $get, Set $set): void
     {
-        // Mengambil nilai dan mengonversi ke float, dengan default 0 untuk price dan 1 untuk quantity
-        $unitPrice = $get('unit_price');
-        $quantity = $get('quantity');
-
-        // Cek jika quantity atau unit price null, maka tidak melakukan perhitungan
-        if ($quantity === null || $unitPrice === null) {
-            $set('subtotal_price', '');
-            return;
+        // 1. Hitung subtotal untuk item saat ini
+        $qty = static::parseCurrency($get('quantity'));
+        if ($qty <= 0) {
+            $qty = 1;
         }
-        // // Mengambil nilai dan mengonversi ke float, dengan default 0 untuk price dan 1 untuk quantity
-        // $unitPrice = $get('unit_price') !== null ? (int) $get('unit_price') : 0;
-        // $quantity = $get('quantity') !== null ? (int) $get('quantity') : 1;
+        $unitPrice = static::parseCurrency($get('unit_price'));
+        $subtotal = $qty * $unitPrice;
 
-        // Cek jika quantity 0 untuk menghindari pembagian dengan 0
-        $subtotalPrice = $quantity > 0 ? (int) $unitPrice * (int) $quantity : 0;
+        $set('subtotal_price', $subtotal);
 
-        // $unitPrice = $price / $quantity;
-        $set('subtotal_price', number_format($subtotalPrice, 0, ',', ''));
-    }
+        // 2. Hitung total_price secara menyeluruh
+        $repeaterItems = $get('../../detailSalesOrders') ?? [];
+        $shippingCost = static::parseCurrency($get('../../shipping_cost'));
 
-    protected static function updateTotalPrice(Get $get, Set $set): void
-    {
-        // Get the repeater items or initialize to an empty array if null
-        $repeaterItems = $get('detailSalesOrders') ?? [];
-
-        $subTotalPrice = 0;
-        $totalPrice = 0;
-        $shippingCost = $get('shipping_cost') !== null ? (int) $get('shipping_cost') : 0;
-
-        foreach ($repeaterItems as $item) {
-            $quantity = $item['quantity'];
-            $unitPrice = $item['unit_price'];
-
-            // Cek jika quantity atau unit price null, maka tidak melakukan perhitungan
-            if ($quantity === null || $unitPrice === null) {
-                continue;
+        $totalSubtotal = 0;
+        if (is_array($repeaterItems)) {
+            foreach ($repeaterItems as $item) {
+                $iQty = static::parseCurrency($item['quantity'] ?? 1);
+                if ($iQty <= 0) {
+                    $iQty = 1;
+                }
+                $iPrice = static::parseCurrency($item['unit_price'] ?? 0);
+                $totalSubtotal += ($iQty * $iPrice);
             }
-
-            // Cek jika quantity null sebelum melakukan operasi perkalian
-            $subTotalPrice += (int) $quantity * (int) $unitPrice;
         }
 
-        $totalPrice = $subTotalPrice + $shippingCost;
+        // Bila repeater state belum memuat item baru / nilai yang baru saja diketik
+        if ($totalSubtotal < $subtotal) {
+            $totalSubtotal = $subtotal;
+        }
 
-        $set('total_price', number_format($totalPrice, 0, ',', ''));
+        $totalPrice = $totalSubtotal + $shippingCost;
+
+        $set('../../total_price', $totalPrice);
+    }
+
+    public static function updateTotalPriceFromRoot(Get $get, Set $set): void
+    {
+        $repeaterItems = $get('detailSalesOrders') ?? [];
+        $shippingCost = static::parseCurrency($get('shipping_cost'));
+
+        $totalSubtotal = 0;
+        if (is_array($repeaterItems)) {
+            foreach ($repeaterItems as $item) {
+                $iQty = static::parseCurrency($item['quantity'] ?? 1);
+                if ($iQty <= 0) {
+                    $iQty = 1;
+                }
+                $iPrice = static::parseCurrency($item['unit_price'] ?? 0);
+                $totalSubtotal += ($iQty * $iPrice);
+            }
+        }
+
+        $totalPrice = $totalSubtotal + $shippingCost;
+
+        $set('total_price', $totalPrice);
     }
 }

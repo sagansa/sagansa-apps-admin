@@ -85,7 +85,7 @@ class InvoicePurchaseResource extends Resource
     {
         $invoicePurchases = InvoicePurchase::query();
 
-        if (!Auth::user()->hasRole('admin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super_admin'])) {
             $invoicePurchases->where('created_by_id', Auth::id());
         }
 
@@ -114,7 +114,7 @@ class InvoicePurchaseResource extends Resource
                     ->relationship('createdBy', 'name')
                     ->searchable()
                     ->preload()
-                    ->visible(fn () => Auth::user()->hasRole('admin')),
+                    ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin'])),
 
                 \Filament\Tables\Filters\TernaryFilter::make('is_empty')
                     ->label('Status Detail')
@@ -146,7 +146,7 @@ class InvoicePurchaseResource extends Resource
                     \Filament\Actions\Action::make('updateInvoiceStatus')
                         ->label('Ubah Status')
                         ->icon('heroicon-o-pencil-square')
-                        ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('staff'))
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']) || Auth::user()->hasRole('staff'))
                         ->fillForm(fn (InvoicePurchase $record): array => [
                             'payment_status' => (string) $record->payment_status,
                             'order_status' => (string) $record->order_status,
@@ -154,7 +154,7 @@ class InvoicePurchaseResource extends Resource
                         ->form(function () {
                             $fields = [];
 
-                            if (Auth::user()->hasRole('admin')) {
+                            if (Auth::user()->hasAnyRole(['admin', 'super_admin'])) {
                                 $fields[] = Select::make('payment_status')
                                     ->label('Payment Status')
                                     ->required()
@@ -171,7 +171,7 @@ class InvoicePurchaseResource extends Resource
                         ->action(function (InvoicePurchase $record, array $data): void {
                             $updateData = [];
 
-                            if (Auth::user()->hasRole('admin')) {
+                            if (Auth::user()->hasAnyRole(['admin', 'super_admin'])) {
                                 $updateData['payment_status'] = $data['payment_status'];
                             }
 
@@ -187,7 +187,7 @@ class InvoicePurchaseResource extends Resource
                     \Filament\Actions\BulkAction::make('setPaymentStatusToOne')
                         ->label('Set Payment Status to Belum Dibayar')
                         ->icon('heroicon-o-check')
-                        ->visible(fn () => Auth::user()->hasRole('admin'))
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
                             InvoicePurchase::whereIn('id', $records->pluck('id'))->update(['payment_status' => 1]);
@@ -196,7 +196,7 @@ class InvoicePurchaseResource extends Resource
                     \Filament\Actions\BulkAction::make('setOrderStatusToOne')
                         ->label('Set Order Status to Belum Diterima')
                         ->icon('heroicon-o-check')
-                        ->visible(fn () => Auth::user()->hasRole('admin'))
+                        ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
                         ->requiresConfirmation()
                         ->action(function (Collection $records) {
                             InvoicePurchase::whereIn('id', $records->pluck('id'))->update(['order_status' => 1]);
@@ -254,8 +254,8 @@ class InvoicePurchaseResource extends Resource
             DateInput::make('date'),
 
             Select::make('payment_status')
-                ->required(fn () => Auth::user()->hasRole('admin'))
-                ->disabled(fn () => !Auth::user()->hasRole('admin'))
+                ->required(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
+                ->disabled(fn () => !Auth::user()->hasAnyRole(['admin', 'super_admin']))
                 ->hidden(fn ($operation) => $operation === 'create')
                 ->preload()
                 ->inlineLabel()
@@ -319,7 +319,7 @@ class InvoicePurchaseResource extends Resource
                     ->hiddenLabel()
                     ->placeholder('quantity')
                     ->required()
-                    ->reactive()
+                    ->live(debounce: 500)
                     ->minValue(1)
                     ->default(1)
                     ->suffix(function (Get $get) {
@@ -330,12 +330,13 @@ class InvoicePurchaseResource extends Resource
 
                 CurrencyRepeaterInput::make('subtotal_invoice')
                     ->placeholder('subtotal')
+                    ->live(debounce: 500)
                     ->afterStateUpdated(function (Get $get, Set $set) {
-                        self::updateTotalPrice($get, $set);
+                        self::updateTotalPriceFromItem($get, $set);
                     })
-
                     ->columnSpan(['md' => 2]),
             ])
+            ->live()
             ->afterStateUpdated(function (Get $get, Set $set) {
                 self::updateTotalPrice($get, $set);
             });
@@ -343,18 +344,16 @@ class InvoicePurchaseResource extends Resource
 
     public static function getDetailsFormBottomSchema(): array
     {
-        return[
+        return [
             CurrencyInput::make('taxes')
-                ->reactive()
-                ->debounce(2000)
+                ->live(debounce: 500)
                 ->inlineLabel()
                 ->afterStateUpdated(function (Get $get, Set $set) {
                     self::updateTotalPrice($get, $set);
                 }),
 
             CurrencyInput::make('discounts')
-                ->reactive()
-                ->debounce(2000)
+                ->live(debounce: 500)
                 ->inlineLabel()
                 ->afterStateUpdated(function (Get $get, Set $set) {
                     self::updateTotalPrice($get, $set);
@@ -386,22 +385,56 @@ class InvoicePurchaseResource extends Resource
         ];
     }
 
+    public static function parseCurrency(mixed $val): int
+    {
+        if ($val === null || $val === '') {
+            return 0;
+        }
+        if (is_int($val)) {
+            return $val;
+        }
+        if (is_float($val)) {
+            return (int) round($val);
+        }
+        $digits = preg_replace('/[^\d]/', '', (string) $val);
+        return $digits !== '' ? (int) $digits : 0;
+    }
+
+    protected static function updateTotalPriceFromItem(Get $get, Set $set): void
+    {
+        $repeaterItems = $get('../../detailInvoices') ?? [];
+        $taxes = static::parseCurrency($get('../../taxes'));
+        $discounts = static::parseCurrency($get('../../discounts'));
+
+        $subtotalPrice = 0;
+        if (is_array($repeaterItems)) {
+            foreach ($repeaterItems as $item) {
+                $subtotalPrice += static::parseCurrency($item['subtotal_invoice'] ?? 0);
+            }
+        }
+
+        $currentSubtotal = static::parseCurrency($get('subtotal_invoice'));
+        if ($subtotalPrice < $currentSubtotal) {
+            $subtotalPrice = $currentSubtotal;
+        }
+
+        $totalPrice = $subtotalPrice + $taxes - $discounts;
+
+        $set('../../subtotal_price', $subtotalPrice);
+        $set('../../total_price', $totalPrice);
+    }
+
     protected static function updateTotalPrice(Get $get, Set $set): void
     {
-        // Get the repeater items or initialize to an empty array if null
         $repeaterItems = $get('detailInvoices') ?? [];
 
         $subtotalPrice = 0;
-        $totalPrice = 0;
-        $taxes = 0;
-        $discounts = 0;
+        $taxes = static::parseCurrency($get('taxes'));
+        $discounts = static::parseCurrency($get('discounts'));
 
-        $taxes = $get('taxes') !== null ? (int) $get('taxes') : 0;
-        $discounts = $get('discounts') !== null ? (int) $get('discounts') : 0;
-
-        foreach ($repeaterItems as $item) {
-            if (isset($item['subtotal_invoice'])) {
-                $subtotalPrice += (int) $item['subtotal_invoice'];
+        if (is_array($repeaterItems)) {
+            foreach ($repeaterItems as $item) {
+                $subtotalPrice += static::parseCurrency($item['subtotal_invoice'] ?? 0);
             }
         }
 

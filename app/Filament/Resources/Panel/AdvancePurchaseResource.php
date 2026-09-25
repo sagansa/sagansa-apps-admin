@@ -108,12 +108,12 @@ class AdvancePurchaseResource extends Resource
                                             }
                                             return null;
                                         })
-                                        ->disabled(fn(?AdvancePurchase $record) => !Auth::user()->hasRole('admin') && $record?->status === 2),
+                                        ->disabled(fn(?AdvancePurchase $record) => !Auth::user()->hasAnyRole(['admin', 'super_admin']) && $record?->status === 2),
 
                                     Select::make('status')
                                         ->required()
                                         ->inlineLabel()
-                                        ->required(fn() => Auth::user()->hasRole('admin'))
+                                        ->required(fn() => Auth::user()->hasAnyRole(['admin', 'super_admin']))
                                         ->hidden(fn($operation) => $operation === 'create')
                                         ->disabled(fn() => Auth::user()->hasRole('staff'))
                                         ->preload()
@@ -131,13 +131,11 @@ class AdvancePurchaseResource extends Resource
                                         ->readOnly(),
 
                                     CurrencyInput::make('discount_price')
-                                        ->debounce(2000)
-                                        ->reactive()
-                                        ->afterStateUpdated(fn($state, Set $set, Get $get) => $set('total_price', $get('subtotal_price') - $state)),
+                                        ->live(debounce: 500)
+                                        ->afterStateUpdated(fn($state, Set $set, Get $get) => self::updateTotalPrice($get, $set)),
 
                                     CurrencyInput::make('total_price')
-                                        ->readOnly()
-                                        ->reactive(),
+                                        ->readOnly(),
 
                                     Notes::make('notes'),
                                 ]),
@@ -157,7 +155,7 @@ class AdvancePurchaseResource extends Resource
     {
         $advancePurchases = AdvancePurchase::query();
 
-        if (!Auth::user()->hasRole('admin')) {
+        if (!Auth::user()->hasAnyRole(['admin', 'super_admin'])) {
             $advancePurchases->where('user_id', Auth::id());
         }
 
@@ -173,7 +171,7 @@ class AdvancePurchaseResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->action(fn (AdvancePurchase $record) => $record->update(['status' => 2]))
-                    ->visible(fn (AdvancePurchase $record) => Auth::user()->hasRole('admin') && $record->status !== 2),
+                    ->visible(fn (AdvancePurchase $record) => Auth::user()->hasAnyRole(['admin', 'super_admin']) && $record->status !== 2),
                 ActionGroup::make([
                     \Filament\Actions\EditAction::make(),
                     \Filament\Actions\ViewAction::make(),
@@ -241,24 +239,23 @@ class AdvancePurchaseResource extends Resource
                         $product = Product::find($get('product_id'));
                         return $product ? $product->unit->unit : '';
                     })
-                    ->debounce(2000)
+                    ->live(debounce: 500)
                     ->columnSpan([
                         'md' => 2,
                     ])
-                    ->reactive()
                     ->afterStateUpdated(function (Get $get, Set $set) {
                         self::updateUnitPrice($get, $set);
+                        self::updateTotalPriceFromItem($get, $set);
                     }),
 
                 CurrencyRepeaterInput::make('price')
                     ->columnSpan([
                         'md' => 2,
                     ])
-                    ->debounce(2000)
-                    ->reactive()
+                    ->live(debounce: 500)
                     ->afterStateUpdated(function (Get $get, Set $set) {
                         self::updateUnitPrice($get, $set);
-                        self::updateTotalPrice($get, $set);
+                        self::updateTotalPriceFromItem($get, $set);
                     }),
 
                 CurrencyRepeaterInput::make('unit_price')
@@ -271,40 +268,74 @@ class AdvancePurchaseResource extends Resource
             ->columns([
                 'md' => 10,
             ])
+            ->live()
             ->afterStateUpdated(function (Get $get, Set $set) {
                 self::updateTotalPrice($get, $set);
             });
     }
 
-
+    public static function parseCurrency(mixed $val): int
+    {
+        if ($val === null || $val === '') {
+            return 0;
+        }
+        if (is_int($val)) {
+            return $val;
+        }
+        if (is_float($val)) {
+            return (int) round($val);
+        }
+        $digits = preg_replace('/[^\d]/', '', (string) $val);
+        return $digits !== '' ? (int) $digits : 0;
+    }
 
     protected static function updateUnitPrice(Get $get, Set $set): void
     {
-        // Mengambil nilai dan mengonversi ke float, dengan default 0 untuk price dan 1 untuk quantity
-        $price = $get('price') !== null ? (int) $get('price') : 1;
-        $quantity = $get('quantity') !== null ? (int) $get('quantity') : 1;
+        $price = static::parseCurrency($get('price'));
+        $quantity = static::parseCurrency($get('quantity'));
+        if ($quantity <= 0) {
+            $quantity = 1;
+        }
 
-        // Cek jika quantity 0 untuk menghindari pembagian dengan 0
-        $unitPrice = $quantity > 0 ? $price / $quantity : 0;
+        $unitPrice = $quantity > 0 ? (int) round($price / $quantity) : 0;
+        $set('unit_price', $unitPrice);
+    }
 
-        // $unitPrice = $price / $quantity;
-        $set('unit_price', number_format($unitPrice, 0, ',', ''));
+    protected static function updateTotalPriceFromItem(Get $get, Set $set): void
+    {
+        $repeaterItems = $get('../../detailAdvancePurchases') ?? [];
+        $discountPrice = static::parseCurrency($get('../../discount_price'));
+
+        $subtotalPrice = 0;
+        if (is_array($repeaterItems)) {
+            foreach ($repeaterItems as $item) {
+                $subtotalPrice += static::parseCurrency($item['price'] ?? 0);
+            }
+        }
+
+        $currentPrice = static::parseCurrency($get('price'));
+        if ($subtotalPrice < $currentPrice) {
+            $subtotalPrice = $currentPrice;
+        }
+
+        $totalPrice = $subtotalPrice - $discountPrice;
+
+        $set('../../subtotal_price', $subtotalPrice);
+        $set('../../total_price', $totalPrice);
     }
 
     protected static function updateTotalPrice(Get $get, Set $set): void
     {
-        // Get the repeater items or initialize to an empty array if null
         $repeaterItems = $get('detailAdvancePurchases') ?? [];
+        $discountPrice = static::parseCurrency($get('discount_price'));
 
         $subtotalPrice = 0;
-
-        foreach ($repeaterItems as $item) {
-            if (isset($item['price'])) {
-                $subtotalPrice += (int) $item['price'];
+        if (is_array($repeaterItems)) {
+            foreach ($repeaterItems as $item) {
+                $subtotalPrice += static::parseCurrency($item['price'] ?? 0);
             }
         }
 
-        $discountPrice = $get('discount_price') !== null ? (int) $get('discount_price') : 0;
         $totalPrice = $subtotalPrice - $discountPrice;
 
         $set('subtotal_price', $subtotalPrice);

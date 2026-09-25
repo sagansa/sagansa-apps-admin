@@ -25,7 +25,18 @@ class CreateSalesOrderDirects extends CreateRecord
         $data['for'] = '1';
         $data['payment_status'] = '1';
         $data['delivery_status'] = '1';
-        $data['ordered_by_id'] = Auth::id();
+        $data['ordered_by_id'] = $data['ordered_by_id'] ?? Auth::id();
+
+        if (isset($data['detailSalesOrders']) && is_array($data['detailSalesOrders'])) {
+            $subtotal = 0;
+            foreach ($data['detailSalesOrders'] as $item) {
+                $qty = (int) ($item['quantity'] ?? 1);
+                $price = (int) preg_replace('/[^\d]/', '', (string) ($item['unit_price'] ?? 0));
+                $subtotal += ($qty * $price);
+            }
+            $shipping = (int) preg_replace('/[^\d]/', '', (string) ($data['shipping_cost'] ?? 0));
+            $data['total_price'] = $subtotal + $shipping;
+        }
 
         return $data;
     }
@@ -33,6 +44,7 @@ class CreateSalesOrderDirects extends CreateRecord
     protected function afterCreate(): void
     {
         $order = $this->record;
+        \App\Support\SalesTotalPrice::recalculate($order);
         
         try {
             // 1. Kirim Notifikasi ke Admin

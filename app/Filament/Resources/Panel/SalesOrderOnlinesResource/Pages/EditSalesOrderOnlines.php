@@ -23,6 +23,22 @@ class EditSalesOrderOnlines extends EditRecord
             $data['assigned_by_id'] = Auth::id();
         }
 
+        if (isset($data['detailSalesOrders']) && is_array($data['detailSalesOrders'])) {
+            $subtotal = 0;
+            foreach ($data['detailSalesOrders'] as $item) {
+                $qty = (int) ($item['quantity'] ?? 1);
+                $price = (int) preg_replace('/[^\d]/', '', (string) ($item['unit_price'] ?? 0));
+                $subtotal += ($qty * $price);
+            }
+            $shipping = (int) preg_replace('/[^\d]/', '', (string) ($data['shipping_cost'] ?? 0));
+            $data['total_price'] = $subtotal + $shipping;
+        }
+
         return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        \App\Support\SalesTotalPrice::recalculate($this->record);
     }
 }
