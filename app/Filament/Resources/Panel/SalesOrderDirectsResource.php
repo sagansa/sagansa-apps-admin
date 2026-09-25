@@ -9,6 +9,7 @@ use App\Filament\Columns\DeliveryStatusColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\PaymentStatusColumn;
 use App\Filament\Filters\SelectStoreFilter;
+use App\Filament\Filters\TotalPriceFilter;
 use Filament\Tables\Filters\SelectFilter;
 use App\Filament\Forms\BottomTotalPriceForm;
 use App\Filament\Forms\DateInput;
@@ -205,8 +206,19 @@ class SalesOrderDirectsResource extends Resource
                         ->prefix('Rp '))
                     ->toggleable(isToggledHiddenByDefault: false),
 
+                CurrencyColumn::make('detailSalesOrders.subtotal_price')
+                    ->label('Subtotal Produk')
+                    ->state(fn (SalesOrderDirect $record) => $record->detailSalesOrders->sum('subtotal_price'))
+                    ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin', 'customer']))
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
                 CurrencyColumn::make('total_price')
-                    ->visible(fn ($record) => auth()->user()->hasRole('admin') || auth()->user()->hasRole('customer'))
+                    ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin', 'customer']))
                     ->summarize(Sum::make()
                         ->numeric(
                             thousandsSeparator: '.'
@@ -227,6 +239,7 @@ class SalesOrderDirectsResource extends Resource
                 // DateFilter::make('delivery_date'),
                 SelectFilter::make('transfer_to_account_id'),
                     // ->relationship('transferToAccount', 'transfer_account_name'),
+                TotalPriceFilter::make('total_price'),
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([

@@ -8,6 +8,7 @@ use App\Filament\Columns\DeliveryAddressColumn;
 use App\Filament\Columns\DeliveryStatusColumn;
 use App\Filament\Filters\SelectStoreFilter;
 use App\Filament\Filters\DateFilter;
+use App\Filament\Filters\TotalPriceFilter;
 use App\Filament\Resources\Panel\SalesOrderOnlinesResource\Pages;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -169,9 +170,30 @@ class SalesOrderOnlinesResource extends Resource
                 //     ->copyMessage('Receiver name copied')
                 //     ->copyMessageDuration(1500),
 
+                CurrencyColumn::make('shipping_cost')
+                    ->label('Ongkir')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
+                CurrencyColumn::make('detailSalesOrders.subtotal_price')
+                    ->label('Subtotal Produk')
+                    ->state(fn (SalesOrderOnline $record) => $record->detailSalesOrders->sum('subtotal_price'))
+                    ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
                 CurrencyColumn::make('total_price')
                     ->label('Total Price')
-                    ->visible(fn() => Auth::user()->hasRole('admin'))
+                    ->visible(fn () => Auth::user()->hasAnyRole(['admin', 'super_admin']))
                     ->summarize(Sum::make()
                         ->numeric(
                             thousandsSeparator: '.'
@@ -180,6 +202,7 @@ class SalesOrderOnlinesResource extends Resource
                         ->prefix('Rp ')),
             ])
             ->filters([
+                TotalPriceFilter::make('total_price'),
                 Filter::make('receipt')
                     ->label('Scan QR Resi')
                     ->form([
@@ -229,6 +252,7 @@ class SalesOrderOnlinesResource extends Resource
             ->filtersFormColumns(2)
             ->filtersFormSchema(fn (array $filters): array => [
                 $filters['receipt']->columnSpanFull(),
+                $filters['total_price'],
                 Section::make('Filter Lainnya')
                     ->schema([
                         $filters['store_id'],
@@ -417,11 +441,6 @@ class SalesOrderOnlinesResource extends Resource
                 ->required(fn ($get) => $get('qr_code_type') === 'qr_code')
                 ->statePath('receipt_no') // <— kunci: tulis ke state 'receipt_no' (kolom model)
                 ->dehydrated(fn ($get) => $get('qr_code_type') === 'qr_code')
-                ->unique(
-                    table: SalesOrderOnline::class,
-                    column: 'receipt_no',
-                    ignoreRecord: true,
-                )
                 ->inlineLabel(),
 
             // Input manual juga menulis ke state 'receipt_no'
@@ -432,11 +451,6 @@ class SalesOrderOnlinesResource extends Resource
                 ->required(fn ($get) => $get('qr_code_type') === 'manual')
                 ->statePath('receipt_no') // <— sama
                 ->dehydrated(fn ($get) => $get('qr_code_type') === 'manual')
-                ->unique(
-                    table: SalesOrderOnline::class,
-                    column: 'receipt_no',
-                    ignoreRecord: true,
-                )
                 ->inlineLabel(),
 
             TextInput::make('receipt_no')
@@ -445,11 +459,6 @@ class SalesOrderOnlinesResource extends Resource
                 ->dehydrated(fn ($get) => filled($get('receipt_no'))) // hanya simpan jika ada isinya
                 ->inlineLabel()
                 ->disabled(fn() => auth()->user()->hasRole('storage-staff'))
-                ->unique(
-                    table: SalesOrderOnline::class,
-                    column: 'receipt_no',
-                    ignoreRecord: true,
-                )
                 ->required(),
 
             // Tidak perlu field 'receipt_no' yang hidden lagi.

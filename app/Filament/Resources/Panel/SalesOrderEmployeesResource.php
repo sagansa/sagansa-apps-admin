@@ -7,6 +7,7 @@ use App\Filament\Columns\CurrencyColumn;
 use App\Filament\Columns\DeliveryAddressColumn;
 use App\Filament\Columns\ImageOpenUrlColumn;
 use App\Filament\Columns\PaymentStatusColumn;
+use App\Filament\Filters\TotalPriceFilter;
 use App\Filament\Forms\BottomTotalPriceForm;
 use App\Filament\Forms\DateInput;
 use App\Filament\Forms\DeliveryAddressForm;
@@ -104,6 +105,26 @@ class SalesOrderEmployeesResource extends Resource
                     })
                     ->extraAttributes(['class' => 'whitespace-pre-wrap']),
 
+                CurrencyColumn::make('shipping_cost')
+                    ->label('Ongkir')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
+                CurrencyColumn::make('detailSalesOrders.subtotal_price')
+                    ->label('Subtotal Produk')
+                    ->state(fn (SalesOrderEmployee $record) => $record->detailSalesOrders->sum('subtotal_price'))
+                    ->summarize(Sum::make()
+                        ->numeric(
+                            thousandsSeparator: '.'
+                        )
+                        ->label('')
+                        ->prefix('Rp ')),
+
                 CurrencyColumn::make('total_price')
                     ->label('Total Price')
                     ->summarize(Sum::make()
@@ -118,9 +139,10 @@ class SalesOrderEmployeesResource extends Resource
 
                 TextColumn::make('orderedBy.name')
                     ->label('Sales')
-                    ->visible(fn ($record) => auth()->user()->hasRole('admin')),
+                    ->visible(fn ($record) => auth()->user()->hasRole('admin') || auth()->user()->hasRole('super_admin')),
             ])
             ->filters([
+                TotalPriceFilter::make('total_price'),
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
