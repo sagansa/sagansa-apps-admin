@@ -35,6 +35,28 @@ class Signer extends Model
         'is_active',
     ];
 
+    private const PNG_MAGIC = "\x89PNG\r\n\x1a\n";
+
+    /**
+     * Data URI PNG untuk pratinjau di form edit (null bila kosong/korup).
+     */
+    public function signatureDataUri(): ?string
+    {
+        $asset = $this->signature_asset;
+
+        if (! is_string($asset) || trim($asset) === '') {
+            return null;
+        }
+
+        $binary = base64_decode($asset, true);
+
+        if ($binary === false || ! str_starts_with($binary, self::PNG_MAGIC)) {
+            return null;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($binary);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

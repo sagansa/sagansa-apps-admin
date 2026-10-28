@@ -9,6 +9,7 @@ use Closure;
 use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -25,6 +26,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 
 class SignerResource extends Resource
 {
@@ -148,6 +150,26 @@ class SignerResource extends Resource
                         ->label('Hapus tanda tangan tersimpan')
                         ->visible(fn (string $operation): bool => $operation === 'edit')
                         ->helperText('Centang lalu simpan untuk mengosongkan aset tanda tangan (diabaikan bila mengunggah berkas baru).'),
+
+                    Placeholder::make('signaturePreview')
+                        ->label('Pratinjau tanda tangan tersimpan')
+                        ->visible(fn (?Signer $record): bool => $record?->signatureDataUri() !== null)
+                        ->content(function (?Signer $record): HtmlString {
+                            $uri = $record?->signatureDataUri();
+
+                            if ($uri === null) {
+                                return new HtmlString('');
+                            }
+
+                            return new HtmlString(
+                                '<div style="display:flex;align-items:center;justify-content:center;'
+                                .'min-height:96px;padding:12px;border:1px dashed rgba(120,120,120,.45);'
+                                .'border-radius:10px;background:rgba(120,120,120,.06);">'
+                                .'<img src="'.e($uri).'" alt="Tanda tangan tersimpan" '
+                                .'style="max-width:240px;max-height:120px;object-fit:contain;" />'
+                                .'</div>'
+                            );
+                        }),
                 ]),
             ]),
         ]);
@@ -157,7 +179,20 @@ class SignerResource extends Resource
     {
         return $table
             ->poll('60s')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->selectRaw('signers.*, (signature_asset IS NOT NULL) as has_signature'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query
+                // Kolom aset (LONGTEXT) sengaja TIDAK ikut dimuat di list —
+                // hanya flag hasil selectRaw (PRD §3 #3).
+                ->select([
+                    'signers.id',
+                    'signers.user_id',
+                    'signers.role',
+                    'signers.display_name',
+                    'signers.title',
+                    'signers.is_active',
+                    'signers.created_at',
+                    'signers.updated_at',
+                ])
+                ->selectRaw('(signature_asset IS NOT NULL) as has_signature'))
             ->columns([
                 TextColumn::make('user_id')
                     ->label('Pengguna')
