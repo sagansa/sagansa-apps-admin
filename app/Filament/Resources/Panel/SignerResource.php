@@ -70,13 +70,14 @@ class SignerResource extends Resource
                         ->label('Pengguna')
                         ->options(fn (): array => User::query()
                             ->orderBy('name')
-                            ->pluck('name', 'id')
+                            ->get(['id', 'name', 'email'])
+                            ->mapWithKeys(fn (User $user): array => [$user->id => "{$user->name} ({$user->email})"])
                             ->all())
                         ->searchable()
                         ->preload()
                         ->required()
                         ->live()
-                        ->helperText('Pengguna dari database sagansa_user — manajemen user tetap di resource Pengguna.')
+                        ->helperText('Pengguna dari database sagansa_user — cari nama atau email; manajemen user tetap di resource Pengguna.')
                         ->afterStateUpdated(function (Set $set, ?string $state): void {
                             if (blank($state)) {
                                 return;
