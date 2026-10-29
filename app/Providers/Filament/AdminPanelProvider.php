@@ -55,6 +55,10 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-building-storefront')
                     ->collapsible(),
                 NavigationGroup::make()
+                    ->label('Konten')
+                    ->icon('heroicon-o-book-open')
+                    ->collapsible(),
+                NavigationGroup::make()
                     ->label('SDM')
                     ->icon('heroicon-o-user-group')
                     ->collapsible(),
