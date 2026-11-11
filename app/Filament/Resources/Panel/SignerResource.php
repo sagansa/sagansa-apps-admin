@@ -131,7 +131,7 @@ class SignerResource extends Resource
                         ->label('Tanda Tangan')
                         ->disk('local')
                         ->acceptedFileTypes(['image/png'])
-                        ->maxSize(500)
+                        ->maxSize(1024)
                         ->live()
                         ->helperText(function (?Signer $record): string {
                             if ($record !== null && filled($record->signature_asset)) {
@@ -140,11 +140,11 @@ class SignerResource extends Resource
                                 return "Tanda tangan tersimpan ({$kb} KB base64) — unggah ulang untuk mengganti.";
                             }
 
-                            return 'PNG maksimal 500 KB, disarankan latar transparan.';
+                            return 'PNG maksimal 1 MB, disarankan latar transparan.';
                         })
                         ->validationMessages([
                             'mimetypes' => 'Berkas harus berformat PNG.',
-                            'max' => 'Ukuran berkas maksimal 500 KB.',
+                            'max' => 'Ukuran berkas maksimal 1 MB.',
                         ]),
 
                     Checkbox::make('removeSignature')
