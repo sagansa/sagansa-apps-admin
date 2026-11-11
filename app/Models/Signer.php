@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicStorageUrl;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -31,14 +32,43 @@ class Signer extends Model
         'role',
         'display_name',
         'title',
+        'signature_asset_path',
         'signature_asset',
         'is_active',
     ];
 
+    /**
+     * Aset base64 (≈1,4 MB untuk PNG 1 MB) TIDAK boleh ikut
+     * `attributesToArray()` — Filament default mengirim seluruh atribut
+     * record ke browser lewat snapshot Livewire, lalu dikirim balik di
+     * SETIAP POST ke endpoint update Livewire. Body melebihi
+     * `post_max_size` → PHP membuang body → `_token` hilang → respons 419.
+     *
+     * `$hidden` hanya menyaring serialisasi; akses atribut langsung
+     * (`$signer->signature_asset`) dan penulisan mass-assign tetap jalan.
+     * EditSigner::mutateFormDataBeforeFill() mengulang pengaman ini secara
+     * eksplisit agar tetap aman bila `$hidden` suatu saat dilepas.
+     */
+    protected $hidden = ['signature_asset'];
+
     private const PNG_MAGIC = "\x89PNG\r\n\x1a\n";
 
     /**
+     * URL pratinjau aset tanda tangan: path img service bila ada, jika tidak
+     * base64 legacy sebagai data URI.
+     */
+    public function signatureUrl(): ?string
+    {
+        if (filled($this->signature_asset_path)) {
+            return PublicStorageUrl::from($this->signature_asset_path);
+        }
+
+        return $this->signatureDataUri();
+    }
+
+    /**
      * Data URI PNG untuk pratinjau di form edit (null bila kosong/korup).
+     * Hanya untuk aset legacy base64 — aset baru sudah berupa URL img service.
      */
     public function signatureDataUri(): ?string
     {

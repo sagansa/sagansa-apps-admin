@@ -2,13 +2,16 @@
 
 namespace App\Filament\Resources\Panel;
 
+use App\Filament\Forms\ImageInput;
 use App\Filament\Resources\Panel\SignerResource\Pages;
 use App\Models\Signer;
 use App\Models\User;
 use Closure;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Checkbox;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -25,7 +28,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\HtmlString;
 
 class SignerResource extends Resource
@@ -127,20 +131,21 @@ class SignerResource extends Resource
                         ->default(true)
                         ->required(),
 
-                    FileUpload::make('signatureUpload')
+                    // Unggahan langsung ke img service (img.sagansa.id) —
+                    // pola ImageInput; state = path relatif yang dipindahkan
+                    // ke signers.signature_asset_path saat simpan.
+                    ImageInput::make('signatureUpload')
                         ->label('Tanda Tangan')
-                        ->disk('local')
+                        ->directory('images/Signer')
                         ->acceptedFileTypes(['image/png'])
                         ->maxSize(1024)
                         ->live()
                         ->helperText(function (?Signer $record): string {
-                            if ($record !== null && filled($record->signature_asset)) {
-                                $kb = number_format(strlen((string) $record->signature_asset) / 1024, 1);
-
-                                return "Tanda tangan tersimpan ({$kb} KB base64) — unggah ulang untuk mengganti.";
+                            if ($record !== null && $record->signatureUrl() !== null) {
+                                return 'Tanda tangan tersimpan di img.sagansa.id — unggah ulang PNG untuk mengganti.';
                             }
 
-                            return 'PNG maksimal 1 MB, disarankan latar transparan.';
+                            return 'PNG maksimal 1 MB, disarankan latar transparan. Disimpan di img.sagansa.id.';
                         })
                         ->validationMessages([
                             'mimetypes' => 'Berkas harus berformat PNG.',
@@ -154,9 +159,9 @@ class SignerResource extends Resource
 
                     Placeholder::make('signaturePreview')
                         ->label('Pratinjau tanda tangan tersimpan')
-                        ->visible(fn (?Signer $record): bool => $record?->signatureDataUri() !== null)
+                        ->visible(fn (?Signer $record): bool => $record?->signatureUrl() !== null)
                         ->content(function (?Signer $record): HtmlString {
-                            $uri = $record?->signatureDataUri();
+                            $uri = $record?->signatureUrl();
 
                             if ($uri === null) {
                                 return new HtmlString('');
@@ -181,8 +186,8 @@ class SignerResource extends Resource
         return $table
             ->poll('60s')
             ->modifyQueryUsing(fn (Builder $query): Builder => $query
-                // Kolom aset (LONGTEXT) sengaja TIDAK ikut dimuat di list —
-                // hanya flag hasil selectRaw (PRD §3 #3).
+                // Kolom aset sengaja TIDAK ikut dimuat di list — hanya flag
+                // hasil selectRaw (path img service ATAU base64 legacy).
                 ->select([
                     'signers.id',
                     'signers.user_id',
@@ -193,7 +198,7 @@ class SignerResource extends Resource
                     'signers.created_at',
                     'signers.updated_at',
                 ])
-                ->selectRaw('(signature_asset IS NOT NULL) as has_signature'))
+                ->selectRaw('(signature_asset IS NOT NULL OR signature_asset_path IS NOT NULL) as has_signature'))
             ->columns([
                 TextColumn::make('user_id')
                     ->label('Pengguna')
@@ -254,12 +259,12 @@ class SignerResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
-                    \Filament\Actions\EditAction::make(),
+                    EditAction::make(),
                 ]),
             ])
             ->bulkActions([
-                \Filament\Actions\BulkActionGroup::make([
-                    \Filament\Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ])
             ->defaultSort('id', 'desc');
@@ -310,31 +315,90 @@ class SignerResource extends Resource
     }
 
     /**
-     * Mutasi data form sebelum create/save: berkas unggahan sementara
-     * (signatureUpload, bukan kolom DB) dibaca isinya lalu disimpan sebagai
-     * base64 di signature_asset; berkas temp dihapus. Checkbox removeSignature
-     * (hanya edit) mengosongkan signature_asset.
+     * Mutasi data form sebelum create/save.
+     *
+     * State `signatureUpload` (bukan kolom DB) setelah unggahan sudah
+     * berupa path relatif di img service (mis. `images/Signer/<uuid>.webp`)
+     * — dipindahkan ke `signature_asset_path`, dan `signature_asset`
+     * (base64 legacy) dikosongkan. Tanpa unggahan & tanpa centang hapus,
+     * kedua kolom tidak disentuh (mengubah nama/jabatan tidak menghapus
+     * aset). Checkbox `removeSignature` mengalah hanya bila tidak ada
+     * unggahan baru.
+     *
+     * `signature_asset` lama sengaja TIDAK ikut di-fill ke form (lihat
+     * EditSigner::mutateFormDataBeforeFill) agar payload Livewire tetap
+     * kecil.
      *
      * @param  array<string, mixed>  $data
+     * @param  string|null  $previousPath  Path img service milik record sebelumnya
+     *                                     (edit) — berkas lama dihapus saat
+     *                                     diganti/dihapus.
      * @return array<string, mixed>
      */
-    public static function mutateSignatureData(array $data): array
+    public static function mutateSignatureData(array $data, ?string $previousPath = null): array
     {
         $upload = $data['signatureUpload'] ?? null;
+        $path = null;
 
         if (filled($upload)) {
-            $path = is_array($upload) ? ($upload[0] ?? null) : $upload;
+            $candidate = is_array($upload) ? ($upload[0] ?? null) : $upload;
 
-            if (filled($path) && Storage::disk('local')->exists($path)) {
-                $data['signature_asset'] = base64_encode(Storage::disk('local')->get($path));
-                Storage::disk('local')->delete($path);
+            if (filled($candidate)) {
+                $path = trim((string) $candidate);
+            }
+        }
+
+        if ($path !== null) {
+            $data['signature_asset_path'] = $path;
+            $data['signature_asset'] = null;
+
+            if (filled($previousPath) && $previousPath !== $path) {
+                static::deleteImageFile($previousPath);
             }
         } elseif (! empty($data['removeSignature'])) {
+            $data['signature_asset_path'] = null;
             $data['signature_asset'] = null;
+
+            if (filled($previousPath)) {
+                static::deleteImageFile($previousPath);
+            }
         }
 
         unset($data['signatureUpload'], $data['removeSignature']);
 
         return $data;
+    }
+
+    /**
+     * Hapus berkas lama di img service — best-effort: kegagalan hanya
+     * dicatat, simpan tidak digagalkan (aset baru sudah tersimpan).
+     */
+    public static function deleteImageFile(string $path): void
+    {
+        $token = config('services.image.api_token');
+        $serviceUrl = config('services.image.service_url', 'https://img.sagansa.id');
+
+        if (blank($token)) {
+            return;
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(15)
+                ->acceptJson()
+                ->delete(rtrim($serviceUrl, '/').'/api/images', ['path' => $path]);
+
+            if (! $response->successful()) {
+                Log::warning('Gagal menghapus aset tanda tangan lama di img service.', [
+                    'path' => $path,
+                    'status' => $response->status(),
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Gagal menghapus aset tanda tangan lama di img service.', [
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }
