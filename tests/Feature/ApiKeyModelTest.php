@@ -11,14 +11,14 @@ class ApiKeyModelTest extends TestCase
     {
         $plain = ApiKey::generatePlainKey();
 
-        $this->assertSame(49, strlen($plain));
+        $this->assertSame(50, strlen($plain));
         $this->assertStringStartsWith('sga_sk_', $plain);
-        $this->assertMatchesRegularExpression('/^sga_sk_[A-Za-z0-9]{42}$/', $plain);
+        $this->assertMatchesRegularExpression('/^sga_sk_[A-Za-z0-9]{43}$/', $plain);
     }
 
     public function test_hash_dan_prefix(): void
     {
-        $plain = 'sga_sk_abcdefghij1234567890abcdefghij1234567890ab';
+        $plain = 'sga_sk_abcdefghij1234567890abcdefghij1234567890abc';
 
         $this->assertSame(hash('sha256', $plain), ApiKey::hashKey($plain));
         $this->assertSame('sga_sk_abc…', ApiKey::prefixOf($plain));

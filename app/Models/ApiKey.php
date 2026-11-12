@@ -44,10 +44,10 @@ class ApiKey extends Model
         return (string) Str::orderedUuid();
     }
 
-    /** Format: sga_sk_ + 42 karakter base62 (total 49). */
+    /** Format: sga_sk_ + 43 karakter base62 (total 50). */
     public static function generatePlainKey(): string
     {
-        return 'sga_sk_'.Str::random(42);
+        return 'sga_sk_'.Str::random(43);
     }
 
     /**
