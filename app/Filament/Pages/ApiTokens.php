@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use Filament\Pages\Page;
+use UnitEnum;
 
 /**
  * Penerbit token API dari panel — token Sanctum dibuat lewat koneksi
@@ -12,7 +13,8 @@ use Filament\Pages\Page;
  */
 class ApiTokens extends Page
 {
-    protected static ?string $navigationGroup = 'Akses';
+    // Tipe wajib persis sama dengan Page::$navigationGroup (invariance property PHP)
+    protected static string|UnitEnum|null $navigationGroup = 'Akses';
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-key';
 
