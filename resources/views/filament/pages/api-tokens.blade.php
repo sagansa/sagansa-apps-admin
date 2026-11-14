@@ -2,9 +2,7 @@
     <div class="space-y-4">
 
         {{-- Tujuan halaman --}}
-        <x-filament::section
-            :description="'Token ini dipakai aplikasi StatementX (esta.sagansa.id) untuk menarik presensi, stok, dan penjualan dari superadmin.sagansa.id lewat header Authorization: Bearer <token>. Token tersimpan di DB auth terpusat (sagansa_user) dan tidak pernah bisa dilihat lagi setelah dibuat — simpan di tempat aman.'"
-        >
+        <x-filament::section description="Token ini dipakai aplikasi StatementX (esta.sagansa.id) untuk menarik presensi, stok, dan penjualan dari superadmin.sagansa.id lewat header Authorization: Bearer <token>. Token tersimpan di DB auth terpusat (sagansa_user) dan tidak pernah bisa dilihat lagi setelah dibuat — simpan di tempat aman.">
             <x-slot:heading>
                 Token untuk mengakses API superadmin
             </x-slot:heading>
@@ -39,34 +37,32 @@
                 Buat token baru
             </x-slot:heading>
 
-            <x-slot:content>
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div class="flex-1">
-                        <label class="mb-1 block text-sm font-medium">
-                            Nama token
-                        </label>
-                        <x-filament::input.wrapper :valid="! $errors->first('tokenName')">
-                            <x-filament::input
-                                type="text"
-                                wire:model="tokenName"
-                                placeholder="mis. esta-superadmin"
-                                autocomplete="off"
-                            />
-                        </x-filament::input.wrapper>
-                        @error('tokenName')
-                            <p class="mt-1 text-sm text-danger-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <x-filament::button
-                            wire:click="createToken"
-                            wire:loading.attr="disabled"
-                        >
-                            Generate token
-                        </x-filament::button>
-                    </div>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="flex-1">
+                    <label class="mb-1 block text-sm font-medium">
+                        Nama token
+                    </label>
+                    <x-filament::input.wrapper :valid="! $errors->first('tokenName')">
+                        <x-filament::input
+                            type="text"
+                            wire:model="tokenName"
+                            placeholder="mis. esta-superadmin"
+                            autocomplete="off"
+                        />
+                    </x-filament::input.wrapper>
+                    @error('tokenName')
+                        <p class="mt-1 text-sm text-danger-600">{{ $message }}</p>
+                    @enderror
                 </div>
-            </x-slot:content>
+                <div>
+                    <x-filament::button
+                        wire:click="createToken"
+                        wire:loading.attr="disabled"
+                    >
+                        Generate token
+                    </x-filament::button>
+                </div>
+            </div>
         </x-filament::section>
 
         {{-- Daftar token --}}
@@ -75,47 +71,45 @@
                 Token aktif Anda ({{ count($tokens) }})
             </x-slot:heading>
 
-            <x-slot:content>
-                @if (count($tokens) === 0)
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Belum ada token. Buat token pertama dengan form di atas.
-                    </p>
-                @else
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="text-left text-gray-500 dark:text-gray-400">
-                                <th class="py-2 pr-4 font-medium">Nama</th>
-                                <th class="py-2 pr-4 font-medium">Dibuat</th>
-                                <th class="py-2 pr-4 font-medium">Terakhir dipakai</th>
-                                <th class="py-2 font-medium"></th>
+            @if (count($tokens) === 0)
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Belum ada token. Buat token pertama dengan form di atas.
+                </p>
+            @else
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-500 dark:text-gray-400">
+                            <th class="py-2 pr-4 font-medium">Nama</th>
+                            <th class="py-2 pr-4 font-medium">Dibuat</th>
+                            <th class="py-2 pr-4 font-medium">Terakhir dipakai</th>
+                            <th class="py-2 font-medium"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($tokens as $token)
+                            <tr class="border-t border-gray-200 dark:border-gray-700">
+                                <td class="py-2 pr-4 font-medium">{{ $token['name'] }}</td>
+                                <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">
+                                    {{ $token['created_at'] ?? '—' }}
+                                </td>
+                                <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">
+                                    {{ $token['last_used_at'] ?? 'belum pernah' }}
+                                </td>
+                                <td class="py-2 text-right">
+                                    <x-filament::button
+                                        color="danger"
+                                        size="sm"
+                                        wire:click="revokeToken({{ $token['id'] }})"
+                                        wire:confirm="Cabut token ini? Aplikasi yang memakainya langsung kehilangan akses."
+                                    >
+                                        Cabut
+                                    </x-filament::button>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($tokens as $token)
-                                <tr class="border-t border-gray-200 dark:border-gray-700">
-                                    <td class="py-2 pr-4 font-medium">{{ $token['name'] }}</td>
-                                    <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">
-                                        {{ $token['created_at'] ?? '—' }}
-                                    </td>
-                                    <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">
-                                        {{ $token['last_used_at'] ?? 'belum pernah' }}
-                                    </td>
-                                    <td class="py-2 text-right">
-                                        <x-filament::button
-                                            color="danger"
-                                            size="sm"
-                                            wire:click="revokeToken({{ $token['id'] }})"
-                                            wire:confirm="Cabut token ini? Aplikasi yang memakainya langsung kehilangan akses."
-                                        >
-                                            Cabut
-                                        </x-filament::button>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                @endif
-            </x-slot:content>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
         </x-filament::section>
 
     </div>
