@@ -65,52 +65,8 @@
             </div>
         </x-filament::section>
 
-        {{-- Daftar token --}}
-        <x-filament::section description="Token milik user lain tidak terlihat di sini. Mencabut token langsung menghentikan akses pemakainya.">
-            <x-slot:heading>
-                Token aktif Anda ({{ count($tokens) }})
-            </x-slot:heading>
-
-            @if (count($tokens) === 0)
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Belum ada token. Buat token pertama dengan form di atas.
-                </p>
-            @else
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-left text-gray-500 dark:text-gray-400">
-                            <th class="py-2 pr-4 font-medium">Nama</th>
-                            <th class="py-2 pr-4 font-medium">Dibuat</th>
-                            <th class="py-2 pr-4 font-medium">Terakhir dipakai</th>
-                            <th class="py-2 font-medium"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($tokens as $token)
-                            <tr class="border-t border-gray-200 dark:border-gray-700">
-                                <td class="py-2 pr-4 font-medium">{{ $token['name'] }}</td>
-                                <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">
-                                    {{ $token['created_at'] ?? '—' }}
-                                </td>
-                                <td class="py-2 pr-4 text-gray-500 dark:text-gray-400">
-                                    {{ $token['last_used_at'] ?? 'belum pernah' }}
-                                </td>
-                                <td class="py-2 text-right">
-                                    <x-filament::button
-                                        color="danger"
-                                        size="sm"
-                                        wire:click="revokeToken({{ $token['id'] }})"
-                                        wire:confirm="Cabut token ini? Aplikasi yang memakainya langsung kehilangan akses."
-                                    >
-                                        Cabut
-                                    </x-filament::button>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            @endif
-        </x-filament::section>
+        {{-- Daftar token — tabel native Filament (pagination, sort, aksi baris) --}}
+        {{ $this->table }}
 
     </div>
 </x-filament-panels::page>

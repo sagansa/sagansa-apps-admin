@@ -2,7 +2,13 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\PersonalAccessToken;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
 use UnitEnum;
 
 /**
@@ -11,8 +17,10 @@ use UnitEnum;
  * langsung valid di aplikasi yang memakai DB auth terpusat yang sama
  * (superadmin/admin_api). Plaintext token hanya ditampilkan sekali saat dibuat.
  */
-class ApiTokens extends Page
+class ApiTokens extends Page implements HasTable
 {
+    use InteractsWithTable;
+
     // Tipe wajib persis sama dengan Page::$navigationGroup (invariance property PHP)
     protected static string|UnitEnum|null $navigationGroup = 'Akses';
 
@@ -29,32 +37,10 @@ class ApiTokens extends Page
         return 'filament.pages.api-tokens';
     }
 
-    /** Daftar token user yang sedang login (tanpa nilai plaintext). */
-    public array $tokens = [];
-
     /** Plaintext token baru — hanya terisi sekali tepat setelah dibuat. */
     public ?string $plainToken = null;
 
     public string $tokenName = 'esta-superadmin';
-
-    public function mount(): void
-    {
-        $this->loadTokens();
-    }
-
-    public function loadTokens(): void
-    {
-        $this->tokens = auth()->user()->tokens()
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn ($token) => [
-                'id' => $token->id,
-                'name' => $token->name,
-                'created_at' => $token->created_at?->format('d M Y H:i'),
-                'last_used_at' => $token->last_used_at?->format('d M Y H:i'),
-            ])
-            ->all();
-    }
 
     public function createToken(): void
     {
@@ -65,8 +51,6 @@ class ApiTokens extends Page
         $this->plainToken = auth()->user()
             ->createToken(trim($this->tokenName))
             ->plainTextToken;
-
-        $this->loadTokens();
     }
 
     public function hideToken(): void
@@ -74,16 +58,37 @@ class ApiTokens extends Page
         $this->plainToken = null;
     }
 
-    public function revokeToken(int $id): void
+    public function table(Table $table): Table
     {
-        // Hanya token milik user yang sedang login yang boleh dicabut.
-        $token = auth()->user()->tokens()->whereKey($id)->first();
-        if ($token) {
-            $token->delete();
-        }
-        if ($this->plainToken !== null) {
-            $this->hideToken();
-        }
-        $this->loadTokens();
+        return $table
+            // Hanya token milik user yang sedang login — user lain tak terlihat.
+            ->query(fn () => auth()->user()->tokens())
+            ->columns([
+                TextColumn::make('name')
+                    ->label('Nama'),
+                TextColumn::make('created_at')
+                    ->label('Dibuat')
+                    ->dateTime('d M Y H:i')
+                    ->sortable(),
+                TextColumn::make('last_used_at')
+                    ->label('Terakhir dipakai')
+                    ->dateTime('d M Y H:i')
+                    ->sortable(),
+            ])
+            // id desc = token terbaru dulu (deterministik walau created_at seri).
+            ->defaultSort('id', 'desc')
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25)
+            ->emptyStateHeading('Belum ada token')
+            ->emptyStateDescription('Buat token pertama dengan form di atas.')
+            ->actions([
+                Action::make('cabut')
+                    ->label('Cabut')
+                    ->color('danger')
+                    ->icon('heroicon-m-trash')
+                    ->requiresConfirmation()
+                    ->modalDescription('Cabut token ini? Aplikasi yang memakainya langsung kehilangan akses.')
+                    ->action(fn (PersonalAccessToken $record) => $record->delete()),
+            ]);
     }
 }
