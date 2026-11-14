@@ -15,6 +15,9 @@ class ApiKeyListTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /** ApiKey ditulis ke koneksi mysql_auth — transaksi test harus membungkusnya juga. */
+    protected array $connectionsToTransact = [null, 'mysql_auth'];
+
     protected function setUp(): void
     {
         parent::setUp();

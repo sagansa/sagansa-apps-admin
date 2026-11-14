@@ -63,7 +63,9 @@ class ApiKeyResource extends Resource
                         ->placeholder('mis. 103.10.20.30')
                         ->helperText('Kosongkan untuk mengizinkan semua IP.')
                         ->rules([
-                            function (string $attribute, $value, \Closure $fail) {
+                            // Closure luar dievaluasi Filament; closure dalam
+                            // adalah rule Laravel-standar ($attribute, $value, $fail).
+                            fn (): \Closure => function (string $attribute, $value, \Closure $fail): void {
                                 foreach ((array) $value as $ip) {
                                     if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
                                         $fail("IP tidak valid: {$ip}");
