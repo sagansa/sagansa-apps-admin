@@ -1,69 +1,51 @@
 <x-filament-panels::page>
-    <div class="fi-page-space-y space-y-4">
+    <div class="space-y-4">
 
         {{-- Tujuan halaman --}}
-        <x-filament::section>
+        <x-filament::section
+            :description="'Token ini dipakai aplikasi StatementX (esta.sagansa.id) untuk menarik presensi, stok, dan penjualan dari superadmin.sagansa.id lewat header Authorization: Bearer <token>. Token tersimpan di DB auth terpusat (sagansa_user) dan tidak pernah bisa dilihat lagi setelah dibuat — simpan di tempat aman.'"
+        >
             <x-slot:heading>
                 Token untuk mengakses API superadmin
             </x-slot:heading>
-            <x-slot:description>
-                Token ini dipakai aplikasi StatementX (esta.sagansa.id) untuk menarik
-                presensi, stok, dan penjualan dari superadmin.sagansa.id lewat header
-                <code>Authorization: Bearer &lt;token&gt;</code>. Token tersimpan di DB
-                auth terpusat (sagansa_user) dan tidak pernah bisa dilihat lagi setelah
-                dibuat — simpan di tempat aman.
-            </x-slot:description>
         </x-filament::section>
 
         {{-- Plaintext token baru — tampil sekali --}}
         @if ($plainToken)
-            <x-filament::notification
-                status="success"
-                icon="heroicon-m-check-circle"
-            >
-                <x-slot:title>
+            <div class="fi-section rounded-xl border border-success-500/30 bg-success-500/5 p-4">
+                <p class="font-bold text-success-600 dark:text-success-400">
                     Token berhasil dibuat — salin sekarang
-                </x-slot:title>
-                <x-slot:description>
-                    Token <strong>tidak akan ditampilkan lagi</strong> setelah Anda
-                    menyembunyikan pesan ini.
-                </x-slot:description>
-            </x-filament::notification>
-
-            <div class="fi-section">
-                <div class="fi-section-content">
-                    <code
-                        class="block w-full break-all rounded-lg bg-gray-100 px-4 py-3 font-mono text-sm dark:bg-gray-900 select-all"
-                    >{{ $plainToken }}</code>
-                    <div class="mt-3">
-                        <x-filament::button
-                            color="gray"
-                            wire:click="hideToken"
-                        >
-                            Sembunyikan
-                        </x-filament::button>
-                    </div>
+                </p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Token <strong>tidak akan ditampilkan lagi</strong> setelah Anda menyembunyikan pesan ini.
+                </p>
+                <code
+                    class="mt-3 block w-full select-all break-all rounded-lg bg-gray-100 px-4 py-3 font-mono text-sm dark:bg-gray-900"
+                >{{ $plainToken }}</code>
+                <div class="mt-3">
+                    <x-filament::button
+                        color="gray"
+                        wire:click="hideToken"
+                    >
+                        Sembunyikan
+                    </x-filament::button>
                 </div>
             </div>
         @endif
 
         {{-- Form generate --}}
-        <x-filament::section>
+        <x-filament::section description="Beri nama yang jelas (mis. peruntukan aplikasinya) supaya mudah dikenali saat mau mencabutnya.">
             <x-slot:heading>
                 Buat token baru
             </x-slot:heading>
-            <x-slot:description>
-                Beri nama yang jelas (mis. peruntukan aplikasinya) supaya mudah
-                dikenali saat mau mencabutnya.
-            </x-slot:description>
 
             <x-slot:content>
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <div class="flex-1">
-                        <x-filament::input.wrapper
-                            label="Nama token"
-                            :invalid="!!$errors->first('tokenName')"
-                        >
+                        <label class="mb-1 block text-sm font-medium">
+                            Nama token
+                        </label>
+                        <x-filament::input.wrapper :valid="! $errors->first('tokenName')">
                             <x-filament::input
                                 type="text"
                                 wire:model="tokenName"
@@ -88,14 +70,10 @@
         </x-filament::section>
 
         {{-- Daftar token --}}
-        <x-filament::section>
+        <x-filament::section description="Token milik user lain tidak terlihat di sini. Mencabut token langsung menghentikan akses pemakainya.">
             <x-slot:heading>
                 Token aktif Anda ({{ count($tokens) }})
             </x-slot:heading>
-            <x-slot:description>
-                Token milik user lain tidak terlihat di sini. Mencabut token
-                langsung menghentikan akses pemakainya.
-            </x-slot:description>
 
             <x-slot:content>
                 @if (count($tokens) === 0)
